@@ -98,7 +98,10 @@ export function App() {
     return (
         <div className="app">
             <header className="topbar">
-                <div className="topbar__brand">Agent log viewer</div>
+                <div className="topbar__brand">
+                    <img className="topbar__logo" src={`${import.meta.env.BASE_URL}logo.png`} alt="" width={28} height={28} />
+                    Agent log viewer
+                </div>
                 {loaded && (
                     <div className="topbar__file">
                         <span className="topbar__title">{loaded.session.title ?? loaded.name}</span>

@@ -100,18 +100,17 @@ pre {
 }
 
 .topbar__brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-weight: 700;
     white-space: nowrap;
 }
 
-.topbar__brand::before {
-    content: '';
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    margin-right: 8px;
-    border-radius: 3px;
-    background: var(--accent);
+.topbar__logo {
+    display: block;
+    width: 28px;
+    height: 28px;
 }
 
 .topbar__file {
