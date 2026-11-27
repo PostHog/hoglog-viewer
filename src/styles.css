@@ -1128,10 +1128,6 @@ button.chip {
     white-space: nowrap;
 }
 
-.servers__reset {
-    font-size: 11px;
-}
-
 .color-swatch {
     position: relative;
     flex: none;
@@ -1190,10 +1186,7 @@ button.chip {
 /* Conversation pauses */
 
 .item-anchor {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    scroll-margin-top: calc(var(--topbar-h) + 140px);
+    scroll-margin-top: 110px;
     border-radius: var(--radius);
 }
 
@@ -1736,4 +1729,164 @@ button.chip {
 
 .files__kind--read {
     color: var(--muted);
+}
+
+/* Readable thread: a time gutter, joined tool blocks, plain agent prose */
+
+.thread {
+    --gutter: 64px;
+    --reading: 1040px;
+}
+
+.thread > .turn,
+.thread > .empty,
+.toolbar > * {
+    width: 100%;
+    max-width: var(--reading);
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.turn__items {
+    gap: 8px;
+}
+
+.entry {
+    display: grid;
+    grid-template-columns: var(--gutter) minmax(0, 1fr);
+    column-gap: 10px;
+    align-items: start;
+}
+
+.entry__gutter {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-top: 6px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.entry__thought {
+    color: var(--thinking);
+    opacity: 0.85;
+    cursor: help;
+}
+
+.entry__body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.entry--prompt {
+    margin-bottom: 8px;
+}
+
+.entry--tool .entry__gutter,
+.entry--event .entry__gutter,
+.entry--context .entry__gutter {
+    padding-top: 5px;
+}
+
+.entry--event .entry__gutter,
+.entry--context .entry__gutter {
+    padding-top: 3px;
+}
+
+/* Back-to-back tool calls read as one block. */
+.entry.joins-previous {
+    margin-top: -9px;
+}
+
+.entry.joins-previous .tool {
+    border-top-color: color-mix(in srgb, var(--border) 55%, transparent);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.entry.joins-next .tool {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.entry.joins-previous .entry__gutter {
+    padding-top: 5px;
+    opacity: 0.8;
+}
+
+.gap-marker {
+    margin-left: calc(var(--gutter) + 10px);
+}
+
+/* Agent replies are prose, not cards. */
+.message--assistant {
+    padding: 2px 0 2px 12px;
+    border: 0;
+    border-left: 2px solid color-mix(in srgb, var(--text) 18%, transparent);
+    border-radius: 0;
+    background: none;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.message--user {
+    padding: 8px 12px;
+}
+
+.message__header {
+    margin-bottom: 0;
+}
+
+.markdown {
+    max-width: 82ch;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol {
+    margin: 4px 0 8px;
+}
+
+.markdown li + li {
+    margin-top: 2px;
+}
+
+/* Bash rows lead with what the agent said the command does. */
+.tool__desc {
+    margin-right: 8px;
+    font-family: var(--font);
+    font-size: 12.5px;
+    color: var(--text);
+}
+
+.tool__cmd {
+    color: var(--muted);
+    opacity: 0.85;
+}
+
+.tool__head {
+    padding: 4px 10px;
+}
+
+.event {
+    padding: 0;
+}
+
+@media (max-width: 900px) {
+    .thread {
+        --gutter: 52px;
+    }
+}
+
+.tool__thought {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--thinking);
+    opacity: 0.85;
 }

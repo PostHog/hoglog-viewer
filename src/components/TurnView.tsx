@@ -1,7 +1,7 @@
 import { memo, useState } from 'react'
 import { between, formatDuration, formatTime } from '../format'
 import type { Item, Turn } from '../parse/types'
-import { ItemList } from './ItemList'
+import { ItemList, PromptEntry } from './ItemList'
 import { UserMessage } from './ItemView'
 
 export interface TurnViewProps {
@@ -35,7 +35,11 @@ export const TurnView = memo(function TurnView({ turn, items, showPrompt, expand
                     {userWaitMs !== undefined && userWaitMs >= GAP_MARKER_MS ? ` · sent ${formatDuration(userWaitMs)} after the previous turn` : ''}
                 </span>
             </header>
-            {turn.prompt && showPrompt && <UserMessage item={turn.prompt} />}
+            {turn.prompt && showPrompt && (
+                <PromptEntry timestamp={turn.prompt.timestamp}>
+                    <UserMessage item={turn.prompt} />
+                </PromptEntry>
+            )}
             {!collapsed && (
                 <div className="turn__items">
                     <ItemList items={items} startedAt={turn.prompt?.timestamp} expandTools={expandTools} />

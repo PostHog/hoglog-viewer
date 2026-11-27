@@ -104,7 +104,7 @@ export function toolSummary(tool: ToolItem): string {
     for (const key of SUMMARY_KEYS) {
         const value = input[key]
         if (typeof value === 'string' && value.trim()) {
-            return firstLine(value)
+            return firstLine(key === 'command' ? withoutLeadingCd(value) : value)
         }
     }
     for (const value of Object.values(input)) {
@@ -113,6 +113,11 @@ export function toolSummary(tool: ToolItem): string {
         }
     }
     return ''
+}
+
+/** `cd /long/project/path && npm test` reads as `npm test`; the full command stays in the expanded view. */
+export function withoutLeadingCd(command: string): string {
+    return command.replace(/^\s*cd\s+("[^"]*"|'[^']*'|\S+)\s*&&\s*/, '')
 }
 
 function firstLine(text: string): string {

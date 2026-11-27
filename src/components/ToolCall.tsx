@@ -5,10 +5,11 @@ import { LongText } from './LongText'
 import { ServerBadge } from './ServerBadge'
 import { useServerStyle } from './ServerColors'
 
-export function ToolCall({ tool, open, onToggle }: { tool: ToolItem; open: boolean; onToggle: () => void }) {
+export function ToolCall({ tool, open, onToggle, thoughtMs }: { tool: ToolItem; open: boolean; onToggle: () => void; thoughtMs?: number }) {
     const duration = between(tool.timestamp, tool.result?.timestamp)
     const status = !tool.result ? 'pending' : tool.result.isError ? 'error' : 'ok'
     const summary = toolSummary(tool)
+    const description = isObject(tool.input) && typeof tool.input.description === 'string' && typeof tool.input.command === 'string' ? tool.input.description : undefined
     const { server, tool: toolName } = parseToolName(tool.name)
     const serverClass = server ? ' tool--mcp' : ''
     const serverStyle = useServerStyle(server)
@@ -21,8 +22,22 @@ export function ToolCall({ tool, open, onToggle }: { tool: ToolItem; open: boole
                 </span>
                 {server && <ServerBadge server={server} />}
                 <span className="tool__name">{toolName}</span>
-                <span className="tool__summary">{summary}</span>
+                <span className="tool__summary">
+                    {description ? (
+                        <>
+                            <span className="tool__desc">{description}</span>
+                            <span className="tool__cmd">{summary}</span>
+                        </>
+                    ) : (
+                        summary
+                    )}
+                </span>
                 <span className="tool__meta">
+                    {thoughtMs ? (
+                        <span className="tool__thought" title="Thinking time before this call. The log keeps only an encrypted signature of the reasoning.">
+                            think {formatDuration(thoughtMs)}
+                        </span>
+                    ) : null}
                     {duration !== undefined && duration >= 0 && <span>{formatDuration(duration)}</span>}
                     <span className={`status-dot status-dot--${status}`} title={statusLabel(status)} />
                 </span>

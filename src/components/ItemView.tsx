@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatDuration, formatTime } from '../format'
+import { formatDuration } from '../format'
 import type { ContextItem, EventItem, Item, ThinkingItem, UserItem } from '../parse/types'
 import { isAgentTool } from '../parse'
 import { Markdown } from './Markdown'
@@ -9,23 +9,24 @@ import { ToolCall } from './ToolCall'
 export interface ItemViewProps {
     item: Item
     expandTools: boolean
+    /** Unreadable thinking before this step, shown on tool rows. */
+    thoughtMs?: number
 }
 
-export function ItemView({ item, expandTools }: ItemViewProps) {
+export function ItemView({ item, expandTools, thoughtMs }: ItemViewProps) {
     switch (item.kind) {
         case 'user':
             return <UserMessage item={item} />
         case 'assistant':
             return (
                 <div className={`message message--assistant${item.sidechain ? ' is-sidechain' : ''}`}>
-                    <MessageHeader who={item.sidechain ? 'Subagent' : 'Agent'} timestamp={item.timestamp} />
                     <Markdown text={item.text} />
                 </div>
             )
         case 'thinking':
             return <Thinking item={item} />
         case 'tool':
-            return isAgentTool(item) ? <SubagentCall tool={item} expandTools={expandTools} /> : <ToolToggle item={item} expandTools={expandTools} />
+            return isAgentTool(item) ? <SubagentCall tool={item} expandTools={expandTools} /> : <ToolToggle item={item} expandTools={expandTools} thoughtMs={thoughtMs} />
         case 'context':
             return <Context item={item} />
         case 'event':
@@ -34,15 +35,15 @@ export function ItemView({ item, expandTools }: ItemViewProps) {
 }
 
 /** Keyed by expandTools in the parent so "expand all" resets every call. */
-function ToolToggle({ item, expandTools }: { item: Extract<Item, { kind: 'tool' }>; expandTools: boolean }) {
+function ToolToggle({ item, expandTools, thoughtMs }: { item: Extract<Item, { kind: 'tool' }>; expandTools: boolean; thoughtMs?: number }) {
     const [open, setOpen] = useState(expandTools)
-    return <ToolCall tool={item} open={open} onToggle={() => setOpen(!open)} />
+    return <ToolCall tool={item} open={open} onToggle={() => setOpen(!open)} thoughtMs={thoughtMs} />
 }
 
 export function UserMessage({ item }: { item: UserItem }) {
     return (
         <div className={`message message--user${item.sidechain ? ' is-sidechain' : ''}`}>
-            <MessageHeader who={item.sidechain ? 'Agent to subagent' : 'User'} timestamp={item.timestamp} badge={item.queued ? 'sent while the agent was busy' : undefined} />
+            <MessageHeader who={item.sidechain ? 'Agent to subagent' : 'User'} badge={item.queued ? 'sent while the agent was busy' : undefined} />
             {item.text && <Markdown text={item.text} />}
             {item.images.map((image, index) => (
                 <img key={index} className="attached-image" src={image.src} alt={`Attached image ${index + 1}`} />
@@ -51,12 +52,11 @@ export function UserMessage({ item }: { item: UserItem }) {
     )
 }
 
-function MessageHeader({ who, timestamp, badge }: { who: string; timestamp?: string; badge?: string }) {
+function MessageHeader({ who, badge }: { who: string; badge?: string }) {
     return (
         <div className="message__header">
             <span className="message__who">{who}</span>
             {badge && <span className="badge">{badge}</span>}
-            <span className="message__time">{formatTime(timestamp)}</span>
         </div>
     )
 }
@@ -111,7 +111,6 @@ function Event({ item }: { item: EventItem }) {
                 ) : (
                     <code className="event__detail">{item.detail}</code>
                 ))}
-            <span className="event__time">{formatTime(item.timestamp)}</span>
         </div>
     )
 }

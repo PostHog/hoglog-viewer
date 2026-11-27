@@ -1,4 +1,4 @@
-import { between, formatCost, formatDateTime, formatDuration, formatNumber, parseToolName, toolDisplayName, truncate } from '../format'
+import { between, formatCost, formatDateTime, formatDuration, formatNumber, parseToolName, toolDisplayName } from '../format'
 import type { Session, Turn } from '../parse/types'
 import { mcpServers } from '../servers'
 import { ActivityChart } from './ActivityChart'
@@ -20,7 +20,7 @@ export interface SidebarProps {
 export function Sidebar({ session, turns, activeTurn, onJump, server, onServerChange }: SidebarProps) {
     const tools = session.items.filter((item) => item.kind === 'tool')
     const servers = mcpServers(tools)
-    const { colorFor, isOverridden, setColor } = useServerColors()
+    const { colorFor, setColor } = useServerColors()
     const barColor = (name: string): string | undefined => {
         const toolServer = parseToolName(name).server
         return toolServer ? colorFor(toolServer) : undefined
@@ -76,15 +76,10 @@ export function Sidebar({ session, turns, activeTurn, onJump, server, onServerCh
                                         {entry.failed > 0 && <span className="text-error"> · {entry.failed} failed</span>}
                                     </span>
                                 </button>
-                                {isOverridden(entry.server) && (
-                                    <button type="button" className="link-button servers__reset" onClick={() => setColor(entry.server, undefined)} title="Go back to the default color">
-                                        Reset
-                                    </button>
-                                )}
                             </li>
                         ))}
                     </ul>
-                    <p className="muted small">Click a server to show only its calls. Click a swatch to change its color; this browser remembers it.</p>
+                    <p className="muted small">Click a server to show only its calls, or its swatch to change its color.</p>
                 </section>
             )}
 
@@ -148,20 +143,6 @@ export function Sidebar({ session, turns, activeTurn, onJump, server, onServerCh
                     </dl>
                 </section>
             )}
-
-            <section className="panel">
-                <h2 className="panel__title">Turns</h2>
-                <ol className="outline">
-                    {turns.map((turn) => (
-                        <li key={turn.index}>
-                            <button type="button" className={`outline__item${turn.index === activeTurn ? ' is-active' : ''}`} onClick={() => onJump(turn.index)}>
-                                <span className="outline__index">{turn.prompt ? turn.number : '·'}</span>
-                                <span className="outline__text">{turn.prompt ? truncate(turn.prompt.text || '(image)', 80) : 'Session start'}</span>
-                            </button>
-                        </li>
-                    ))}
-                </ol>
-            </section>
         </aside>
     )
 }
