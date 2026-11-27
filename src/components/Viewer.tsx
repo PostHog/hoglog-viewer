@@ -40,10 +40,12 @@ export interface ViewerProps {
     /** Undefined until a log is open; every panel then shows its empty state. */
     session?: Session
     dragging: boolean
+    /** A linked log is downloading. */
+    loading?: boolean
     onOpenFiles: () => void
 }
 
-export function Viewer({ session: loadedSession, dragging, onOpenFiles }: ViewerProps) {
+export function Viewer({ session: loadedSession, dragging, loading, onOpenFiles }: ViewerProps) {
     const session = loadedSession ?? EMPTY_SESSION
     const empty = loadedSession === undefined
     const turns = useMemo(() => groupTurns(session.items), [session])
@@ -219,7 +221,7 @@ export function Viewer({ session: loadedSession, dragging, onOpenFiles }: Viewer
 
                     <main className="thread" ref={thread}>
                         {empty ? (
-                            <Dropzone dragging={dragging} onOpenFiles={onOpenFiles} />
+                            <Dropzone dragging={dragging} loading={loading} onOpenFiles={onOpenFiles} />
                         ) : (
                             <>
                                 <div className="toolbar">

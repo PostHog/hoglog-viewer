@@ -1891,3 +1891,8 @@ button.chip {
 .panel__empty {
     margin: 0;
 }
+
+.dropzone.is-loading {
+    cursor: progress;
+    border-style: solid;
+}

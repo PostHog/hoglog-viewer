@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Viewer } from './components/Viewer'
 import { parseLogFiles, type LogFile } from './parse'
 import type { Session } from './parse/types'
+import { fetchLog, locationWithoutLogUrls, logUrlsFrom, RemoteLogError } from './remote'
 
 interface Loaded {
     name: string
@@ -12,6 +13,7 @@ export function App() {
     const [loaded, setLoaded] = useState<Loaded>()
     const [error, setError] = useState<string>()
     const [dragging, setDragging] = useState(false)
+    const [remoteLoading, setRemoteLoading] = useState(false)
     const fileInput = useRef<HTMLInputElement>(null)
 
     const load = useCallback((files: LogFile[]) => {
@@ -39,6 +41,23 @@ export function App() {
         },
         [load]
     )
+
+    // Opened with ?url= or #url=: fetch the log, and drop the signed link from the address bar first.
+    useEffect(() => {
+        const urls = logUrlsFrom(window.location.search, window.location.hash)
+        if (!urls.length) {
+            return
+        }
+        window.history.replaceState(null, '', locationWithoutLogUrls(window.location.pathname, window.location.search, window.location.hash))
+        setRemoteLoading(true)
+        Promise.all(urls.map(fetchLog))
+            .then((files) => {
+                files.sort((a, b) => Number(a.name.startsWith('agent-')) - Number(b.name.startsWith('agent-')))
+                load(files)
+            })
+            .catch((caught: unknown) => setError(caught instanceof RemoteLogError ? `Could not open the linked log. ${caught.message}` : `Could not open the linked log: ${String(caught)}`))
+            .finally(() => setRemoteLoading(false))
+    }, [load])
 
     useEffect(() => {
         const onDragOver = (event: DragEvent): void => {
@@ -124,7 +143,13 @@ export function App() {
 
             {error && <p className="banner banner--error">{error}</p>}
 
-            <Viewer key={loaded ? loaded.name + loaded.session.items.length : 'empty'} session={loaded?.session} dragging={dragging} onOpenFiles={() => fileInput.current?.click()} />
+            <Viewer
+                key={loaded ? loaded.name + loaded.session.items.length : 'empty'}
+                session={loaded?.session}
+                dragging={dragging}
+                loading={remoteLoading}
+                onOpenFiles={() => fileInput.current?.click()}
+            />
             {dragging && loaded && <div className="drop-overlay">Drop to open this log</div>}
         </div>
     )
