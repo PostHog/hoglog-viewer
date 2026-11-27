@@ -1,10 +1,12 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { parseToolName } from '../format'
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { between, parseToolName } from '../format'
 import { groupTurns } from '../parse'
+import { mcpServers } from '../servers'
 import type { Item, Session } from '../parse/types'
 import { ServerBadge } from './ServerBadge'
 import { ServerColorsProvider } from './ServerColors'
 import { Sidebar } from './Sidebar'
+import { TimelineView } from './TimelineView'
 import { TurnView } from './TurnView'
 
 interface Filters {
@@ -29,6 +31,9 @@ export function Viewer({ session }: { session: Session }) {
     const [expandTools, setExpandTools] = useState(false)
     const [activeTurn, setActiveTurn] = useState<number>()
     const [server, setServer] = useState<string>()
+    const [mode, setMode] = useState<'conversation' | 'timeline'>('conversation')
+    const [pendingScroll, setPendingScroll] = useState<Item>()
+    const servers = useMemo(() => mcpServers(session.items.filter((item) => item.kind === 'tool')).map((entry) => entry.server), [session])
 
     const haystacks = useMemo(() => {
         const map = new Map<string, string>()
@@ -60,6 +65,34 @@ export function Viewer({ session }: { session: Session }) {
             .filter((entry) => entry.visible)
     }, [turns, filters, deferredQuery, haystacks, server])
 
+    const isDimmed = useCallback(
+        (item: Item): boolean => {
+            if (server && !(item.kind === 'tool' && parseToolName(item.name).server === server)) {
+                return true
+            }
+            return Boolean(deferredQuery) && !(haystacks.get(item.id)?.includes(deferredQuery) ?? false)
+        },
+        [server, deferredQuery, haystacks]
+    )
+
+    const showInConversation = useCallback((item: Item) => {
+        setMode('conversation')
+        setPendingScroll(item)
+    }, [])
+
+    useEffect(() => {
+        if (mode !== 'conversation' || !pendingScroll) {
+            return
+        }
+        const target = document.getElementById(`item-${pendingScroll.id}`)
+        if (target) {
+            target.scrollIntoView({ block: 'center' })
+            target.classList.add('is-flashing')
+            window.setTimeout(() => target.classList.remove('is-flashing'), 1600)
+        }
+        setPendingScroll(undefined)
+    }, [mode, pendingScroll])
+
     const matchCount = deferredQuery || server ? visibleTurns.reduce((sum, entry) => sum + entry.items.length, 0) : 0
 
     useEffect(() => {
@@ -74,7 +107,7 @@ export function Viewer({ session }: { session: Session }) {
         )
         document.querySelectorAll('[data-turn]').forEach((element) => observer.observe(element))
         return () => observer.disconnect()
-    }, [visibleTurns])
+    }, [visibleTurns, mode])
 
     const jump = (index: number): void => {
         document.getElementById(`turn-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -86,7 +119,15 @@ export function Viewer({ session }: { session: Session }) {
             <Sidebar session={session} turns={turns} activeTurn={activeTurn} onJump={jump} server={server} onServerChange={setServer} />
             <main className="timeline">
                 <div className="toolbar">
+                    <div className="view-switch" role="tablist" aria-label="View">
+                        {(['conversation', 'timeline'] as const).map((value) => (
+                            <button key={value} type="button" role="tab" aria-selected={mode === value} className={`view-switch__tab${mode === value ? ' is-active' : ''}`} onClick={() => setMode(value)}>
+                                {value === 'conversation' ? 'Conversation' : 'Timeline'}
+                            </button>
+                        ))}
+                    </div>
                     <input className="search" type="search" placeholder="Search prompts, replies, commands and output" value={query} onChange={(event) => setQuery(event.target.value)} />
+                    {mode === 'conversation' && (
                     <div className="toggles">
                         {(Object.keys(FILTER_LABELS) as (keyof Filters)[]).map((key) => (
                             <label key={key} className="toggle">
@@ -98,6 +139,7 @@ export function Viewer({ session }: { session: Session }) {
                             {expandTools ? 'Collapse tool calls' : 'Expand tool calls'}
                         </button>
                     </div>
+                    )}
                     {server && (
                         <div className="active-filter">
                             Only calls to <ServerBadge server={server} />
@@ -112,10 +154,16 @@ export function Viewer({ session }: { session: Session }) {
                         </p>
                     )}
                 </div>
-                {visibleTurns.length === 0 && <p className="empty">Nothing matches the current search and filters.</p>}
-                {visibleTurns.map(({ turn, items }) => (
-                    <TurnView key={turn.index} turn={turn} items={items} showPrompt expandTools={expandTools} />
-                ))}
+                {mode === 'timeline' ? (
+                    <TimelineView turns={turns} servers={servers} isDimmed={isDimmed} onShowInConversation={showInConversation} />
+                ) : (
+                    <>
+                        {visibleTurns.length === 0 && <p className="empty">Nothing matches the current search and filters.</p>}
+                        {visibleTurns.map(({ turn, items }) => (
+                            <TurnView key={turn.index} turn={turn} items={items} showPrompt expandTools={expandTools} userWaitMs={turns[turn.index - 1]?.prompt ? between(turns[turn.index - 1].endedAt, turn.prompt?.timestamp) : undefined} />
+                        ))}
+                    </>
+                )}
             </main>
         </div>
         </ServerColorsProvider>

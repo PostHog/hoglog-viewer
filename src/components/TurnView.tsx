@@ -8,9 +8,17 @@ export interface TurnViewProps {
     items: Item[]
     showPrompt: boolean
     expandTools: boolean
+    /** Time between the previous turn's last activity and this prompt. */
+    userWaitMs?: number
 }
 
-export const TurnView = memo(function TurnView({ turn, items, showPrompt, expandTools }: TurnViewProps) {
+const GAP_MARKER_MS = 20_000
+
+function itemEnd(item: Item): string | undefined {
+    return item.kind === 'tool' ? (item.result?.timestamp ?? item.timestamp) : item.timestamp
+}
+
+export const TurnView = memo(function TurnView({ turn, items, showPrompt, expandTools, userWaitMs }: TurnViewProps) {
     const [collapsed, setCollapsed] = useState(false)
     const toolCount = turn.items.filter((item) => item.kind === 'tool').length
     const errorCount = turn.items.filter((item) => item.kind === 'tool' && item.result?.isError).length
@@ -27,14 +35,22 @@ export const TurnView = memo(function TurnView({ turn, items, showPrompt, expand
                     {duration ? ` · ${formatDuration(duration)}` : ''}
                     {toolCount ? ` · ${toolCount} tool ${toolCount === 1 ? 'call' : 'calls'}` : ''}
                     {errorCount ? <span className="text-error"> · {errorCount} failed</span> : null}
+                    {userWaitMs !== undefined && userWaitMs >= GAP_MARKER_MS ? ` · sent ${formatDuration(userWaitMs)} after the previous turn` : ''}
                 </span>
             </header>
             {turn.prompt && showPrompt && <UserMessage item={turn.prompt} />}
             {!collapsed && (
                 <div className="turn__items">
-                    {items.map((item) => (
-                        <ItemView key={`${item.id}-${expandTools}`} item={item} expandTools={expandTools} />
-                    ))}
+                    {items.map((item, index) => {
+                        const previousEnd = index === 0 ? turn.prompt?.timestamp : itemEnd(items[index - 1])
+                        const gap = between(previousEnd, item.timestamp)
+                        return (
+                            <div key={`${item.id}-${expandTools}`} id={`item-${item.id}`} className="item-anchor">
+                                {gap !== undefined && gap >= GAP_MARKER_MS && <div className="gap-marker">{formatDuration(gap)} later</div>}
+                                <ItemView item={item} expandTools={expandTools} />
+                            </div>
+                        )
+                    })}
                 </div>
             )}
             {collapsed && items.length > 0 && <p className="muted turn__hidden">{items.length} items hidden</p>}

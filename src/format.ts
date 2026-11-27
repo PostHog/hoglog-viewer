@@ -14,9 +14,11 @@ export function formatDuration(ms: number | undefined): string {
     }
     const minutes = Math.floor(seconds / 60)
     if (minutes < 60) {
-        return `${minutes}m ${Math.round(seconds % 60)}s`
+        const rest = Math.round(seconds % 60)
+        return rest ? `${minutes}m ${rest}s` : `${minutes}m`
     }
-    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
+    const hours = Math.floor(minutes / 60)
+    return minutes % 60 ? `${hours}h ${minutes % 60}m` : `${hours}h`
 }
 
 export function between(start?: string, end?: string): number | undefined {

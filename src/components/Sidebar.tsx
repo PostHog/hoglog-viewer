@@ -1,5 +1,6 @@
-import { between, formatCost, formatDateTime, formatDuration, formatNumber, isPostHogServer, parseToolName, toolDisplayName, truncate } from '../format'
-import type { Session, ToolItem, Turn } from '../parse/types'
+import { between, formatCost, formatDateTime, formatDuration, formatNumber, parseToolName, toolDisplayName, truncate } from '../format'
+import type { Session, Turn } from '../parse/types'
+import { mcpServers } from '../servers'
 import { ActivityChart } from './ActivityChart'
 import { ServerBadge } from './ServerBadge'
 import { useServerColors } from './ServerColors'
@@ -169,28 +170,4 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'er
             <dd className={tone === 'error' ? 'text-error' : undefined}>{value}</dd>
         </div>
     )
-}
-
-interface ServerUsage {
-    server: string
-    calls: number
-    failed: number
-}
-
-/** MCP servers by call count, with PostHog's always first. */
-function mcpServers(tools: ToolItem[]): ServerUsage[] {
-    const usage = new Map<string, ServerUsage>()
-    for (const tool of tools) {
-        const { server } = parseToolName(tool.name)
-        if (!server) {
-            continue
-        }
-        const entry = usage.get(server) ?? { server, calls: 0, failed: 0 }
-        entry.calls++
-        if (tool.result?.isError) {
-            entry.failed++
-        }
-        usage.set(server, entry)
-    }
-    return [...usage.values()].sort((a, b) => Number(isPostHogServer(b.server)) - Number(isPostHogServer(a.server)) || b.calls - a.calls)
 }
