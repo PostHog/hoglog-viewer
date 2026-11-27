@@ -1,4 +1,4 @@
-# Agent log viewer
+# Hoglog viewer
 
 A static web app for reading agent session logs that people send us: drop a file in, read the conversation turn by turn.
 
@@ -46,12 +46,12 @@ pnpm typecheck
 ## Deploying to HostHog
 
 The app is published by hand to HostHog, which serves static sites behind employee login.
-HostHog takes the site slug from the zip name, so `agent-log-viewer.zip` publishes to `https://agent-log-viewer.hosthog.dev`.
+HostHog takes the site slug from the zip name, so `hoglog-viewer.zip` publishes to `https://hoglog-viewer.hosthog.dev`.
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm package    # builds dist/ and writes agent-log-viewer.zip
+pnpm package    # builds dist/ and writes hoglog-viewer.zip
 ```
 
-Then publish `agent-log-viewer.zip` with `hosthog publish`, the HostHog MCP `publish` tool, or by dragging it into HostHog.
+Then publish `hoglog-viewer.zip` with `hosthog publish`, the HostHog MCP `publish` tool, or by dragging it into HostHog.
 The build uses relative asset paths, so it works from any path on the host.

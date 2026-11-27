@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const PREFIX = 'agent-log-viewer:'
+const PREFIX = 'hoglog-viewer:'
 
 /** State the browser keeps between logs and visits, for layout choices such as a hidden timeline. */
 export function usePersistentState<T>(key: string, initial: T): [T, (value: T) => void] {

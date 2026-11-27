@@ -1,5 +1,5 @@
 {
-  "name": "agent-log-viewer",
+  "name": "hoglog-viewer",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "package": "pnpm build && rm -f agent-log-viewer.zip && cd dist && zip -qr ../agent-log-viewer.zip .",
+    "package": "pnpm build && rm -f hoglog-viewer.zip && cd dist && zip -qr ../hoglog-viewer.zip .",
     "format": "prettier --write src",
     "format:check": "prettier --check src"
   },

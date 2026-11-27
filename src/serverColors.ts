@@ -24,7 +24,7 @@ const PALETTE = [
     colors.cobalt.core,
 ]
 
-const STORAGE_KEY = 'agent-log-viewer:server-colors'
+const STORAGE_KEY = 'hoglog-viewer:server-colors'
 
 function normalize(server: string): string {
     return server.toLowerCase().replace(/[^a-z0-9]/g, '')

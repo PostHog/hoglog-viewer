@@ -21,7 +21,7 @@ export function App() {
             const session = parseLogFiles(files)
             setLoaded({ name, session })
             setError(undefined)
-            document.title = `${session.title ?? name} · Agent log viewer`
+            document.title = `${session.title ?? name} · Hoglog viewer`
             window.scrollTo(0, 0)
         } catch (caught) {
             setError(`Could not read ${name}: ${caught instanceof Error ? caught.message : String(caught)}`)
@@ -100,7 +100,7 @@ export function App() {
             <header className="topbar">
                 <div className="topbar__brand">
                     <img className="topbar__logo" src={`${import.meta.env.BASE_URL}logo.png`} alt="" width={28} height={28} />
-                    Agent log viewer
+                    Hoglog viewer
                 </div>
                 {loaded && (
                     <div className="topbar__file">
