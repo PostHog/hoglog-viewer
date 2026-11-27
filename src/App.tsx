@@ -67,6 +67,9 @@ export function App() {
             const files = readHandoff(event, opener)
             if (files) {
                 received = true
+                // Drop the link to the PostHog Admin tab before rendering anything from the transcript, so nothing
+                // that later runs in this tab can navigate that tab.
+                window.opener = null
                 setHandoffWaiting(false)
                 load(mainLogFirst(files))
             }
@@ -75,6 +78,7 @@ export function App() {
         window.opener.postMessage({ type: READY_MESSAGE, version: HANDOFF_VERSION }, '*')
         const timeout = window.setTimeout(() => {
             if (!received) {
+                window.opener = null
                 setHandoffWaiting(false)
                 setError(HANDOFF_LOST)
             }
