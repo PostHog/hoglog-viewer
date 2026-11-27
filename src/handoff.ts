@@ -1,12 +1,13 @@
 import type { LogFile } from './parse'
 
 /**
- * PostHog Admin opens the viewer at `#handoff`, waits for READY, then posts the transcript with OPEN.
- * The file goes from tab to tab inside the browser and never reaches a server.
+ * PostHog Admin's handoff (`Handoff` in posthog/admin/console/panels.py): it opens the viewer at `#handoff`,
+ * waits for READY, then posts the transcript with HANDOFF. The file goes from tab to tab inside the browser
+ * and never reaches a server.
  */
 export const HANDOFF_HASH = '#handoff'
-export const READY_MESSAGE = 'hoglog-viewer:ready'
-export const OPEN_MESSAGE = 'hoglog-viewer:open'
+export const READY_MESSAGE = 'posthog-admin:ready'
+export const HANDOFF_MESSAGE = 'posthog-admin:handoff'
 export const HANDOFF_VERSION = 1
 
 /** Pages allowed to hand a log over. The viewer is public, so anything else is ignored. */
@@ -34,7 +35,7 @@ export function readHandoff(event: HandoffEvent, opener: unknown): LogFile[] | u
         return undefined
     }
     const data = event.data
-    if (typeof data !== 'object' || data === null || (data as { type?: unknown }).type !== OPEN_MESSAGE) {
+    if (typeof data !== 'object' || data === null || (data as { type?: unknown }).type !== HANDOFF_MESSAGE) {
         return undefined
     }
     const files = (data as { files?: unknown }).files

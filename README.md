@@ -19,11 +19,11 @@ The file is parsed in the browser and never leaves it. There is no backend, no s
 
 ## Opening a log from PostHog Admin
 
-PostHog Admin hands a transcript to the viewer without a link or a server in between:
+PostHog Admin hands a transcript to the viewer without a link or a server in between, through the console's `Handoff` (`posthog/admin/console/panels.py` in PostHog/posthog):
 
 1. It opens `https://hoglog-viewer.hosthog.dev/#handoff` in a new tab.
-2. The viewer posts `{ type: "hoglog-viewer:ready", version: 1 }` to the tab that opened it.
-3. PostHog Admin answers with `{ type: "hoglog-viewer:open", files: [{ name, text }] }`, sent only to the viewer's origin.
+2. The viewer posts `{ type: "posthog-admin:ready", version: 1 }` to the tab that opened it.
+3. PostHog Admin answers with `{ type: "posthog-admin:handoff", version: 1, files: [{ name, text }] }`, sent only to the viewer's origin.
 
 The viewer accepts that message only from the tab that opened it, and only when that tab is on `us.posthog.com`, `eu.posthog.com` or `localhost:8010` (see `src/handoff.ts`).
 The opening page must keep its link to the tab it opens, so it sends `Cross-Origin-Opener-Policy: same-origin-allow-popups`.
