@@ -82,15 +82,6 @@ export function isPostHogServer(server: string): boolean {
     return server.toLowerCase().includes('posthog')
 }
 
-/** A stable hue per server name, so each server keeps its color across the page. */
-export function serverHue(server: string): number {
-    let hash = 0
-    for (const char of server.toLowerCase()) {
-        hash = (hash * 31 + char.charCodeAt(0)) % 360
-    }
-    return hash
-}
-
 const SUMMARY_KEYS = ['command', 'cmd', 'file_path', 'path', 'filePath', 'notebook_path', 'pattern', 'url', 'query', 'skill', 'description', 'prompt', 'subject']
 
 /** One line that says what the call did, like the command it ran or the file it read. */

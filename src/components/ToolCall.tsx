@@ -1,18 +1,20 @@
-import { between, formatDuration, isPostHogServer, parseToolName, toolSummary } from '../format'
+import { between, formatDuration, parseToolName, toolSummary } from '../format'
 import type { ToolItem } from '../parse/types'
 import { isObject } from '../parse/util'
 import { LongText } from './LongText'
-import { ServerBadge, serverStyle } from './ServerBadge'
+import { ServerBadge } from './ServerBadge'
+import { useServerStyle } from './ServerColors'
 
 export function ToolCall({ tool, open, onToggle }: { tool: ToolItem; open: boolean; onToggle: () => void }) {
     const duration = between(tool.timestamp, tool.result?.timestamp)
     const status = !tool.result ? 'pending' : tool.result.isError ? 'error' : 'ok'
     const summary = toolSummary(tool)
     const { server, tool: toolName } = parseToolName(tool.name)
-    const serverClass = server ? (isPostHogServer(server) ? ' tool--mcp tool--posthog' : ' tool--mcp') : ''
+    const serverClass = server ? ' tool--mcp' : ''
+    const serverStyle = useServerStyle(server)
 
     return (
-        <div className={`tool tool--${status}${serverClass}${tool.sidechain ? ' is-sidechain' : ''}`} style={server ? serverStyle(server) : undefined}>
+        <div className={`tool tool--${status}${serverClass}${tool.sidechain ? ' is-sidechain' : ''}`} style={serverStyle}>
             <button type="button" className="tool__head" onClick={onToggle} aria-expanded={open}>
                 <span className="tool__chevron" aria-hidden>
                     {open ? '▾' : '▸'}

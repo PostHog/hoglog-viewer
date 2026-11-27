@@ -9,6 +9,7 @@ The file is parsed in the browser and never leaves it. There is no backend, no s
 - Each turn opens with the user's prompt, followed by the agent's replies, reasoning, and tool calls in order.
 - Tool calls are one line each (tool, command or path, duration, status) and expand to show input and output. Edits render as diffs and todo lists as checklists.
 - MCP tool calls carry a badge for their server. PostHog uses the logomark from `@posthog/brand` (the white mono one in dark mode, per the brand rules), and common providers use their logo from `simple-icons` (listed in `src/serverLogos.ts`). The MCP servers panel filters the timeline to one server.
+- Each MCP server has its own color on its badge, its tool rows, the per-turn chart (stacked by server) and the tool list. Defaults live in `src/serverColors.ts`: a few fixed picks, then the provider's brand color, then a stable pick from the `@posthog/brand` palette. Click a server's swatch to override its color; overrides are kept in the browser's local storage.
 - The sidebar has totals (duration, prompts, tool calls, failures, tokens, cost), tool calls per turn, the most used tools, session details, and a turn outline you can jump through.
 - Search covers prompts, replies, tool input, and tool output. Filters hide tool calls, reasoning, injected context (system reminders, hook output, instruction files), or subagent activity.
 

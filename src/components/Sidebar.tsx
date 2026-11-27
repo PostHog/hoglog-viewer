@@ -1,6 +1,8 @@
 import { between, formatCost, formatDateTime, formatDuration, formatNumber, isPostHogServer, parseToolName, toolDisplayName, truncate } from '../format'
-import type { Item, Session, ToolItem, Turn } from '../parse/types'
-import { ServerBadge, serverStyle } from './ServerBadge'
+import type { Session, ToolItem, Turn } from '../parse/types'
+import { ActivityChart } from './ActivityChart'
+import { ServerBadge } from './ServerBadge'
+import { useServerColors } from './ServerColors'
 
 const TOP_TOOLS = 12
 const TIMESTAMP_LABELS = new Set(['Started', 'Last activity'])
@@ -17,7 +19,11 @@ export interface SidebarProps {
 export function Sidebar({ session, turns, activeTurn, onJump, server, onServerChange }: SidebarProps) {
     const tools = session.items.filter((item) => item.kind === 'tool')
     const servers = mcpServers(tools)
-    const inScope = (item: Item): item is ToolItem => item.kind === 'tool' && (!server || parseToolName(item.name).server === server)
+    const { colorFor, isOverridden, setColor } = useServerColors()
+    const barColor = (name: string): string | undefined => {
+        const toolServer = parseToolName(name).server
+        return toolServer ? colorFor(toolServer) : undefined
+    }
     const failed = tools.filter((tool) => tool.result?.isError).length
     const counts = new Map<string, number>()
     for (const tool of tools) {
@@ -28,7 +34,6 @@ export function Sidebar({ session, turns, activeTurn, onJump, server, onServerCh
     const first = turns.find((turn) => turn.startedAt)?.startedAt
     const last = [...turns].reverse().find((turn) => turn.endedAt)?.endedAt
     const prompts = turns.filter((turn) => turn.prompt).length
-    const maxTurnTools = Math.max(1, ...turns.map((turn) => turn.items.filter(inScope).length))
 
     return (
         <aside className="sidebar">
@@ -50,7 +55,10 @@ export function Sidebar({ session, turns, activeTurn, onJump, server, onServerCh
                     <h2 className="panel__title">MCP servers</h2>
                     <ul className="servers">
                         {servers.map((entry) => (
-                            <li key={entry.server}>
+                            <li key={entry.server} className="servers__item">
+                                <label className="color-swatch" title={`Color for ${entry.server}`} style={{ background: colorFor(entry.server) }}>
+                                    <input type="color" value={colorFor(entry.server)} onChange={(event) => setColor(entry.server, event.target.value)} aria-label={`Color for ${entry.server}`} />
+                                </label>
                                 <button
                                     type="button"
                                     className={`servers__row${entry.server === server ? ' is-active' : ''}`}
@@ -64,33 +72,34 @@ export function Sidebar({ session, turns, activeTurn, onJump, server, onServerCh
                                         {entry.failed > 0 && <span className="text-error"> · {entry.failed} failed</span>}
                                     </span>
                                 </button>
+                                {isOverridden(entry.server) && (
+                                    <button type="button" className="link-button servers__reset" onClick={() => setColor(entry.server, undefined)} title="Go back to the default color">
+                                        Reset
+                                    </button>
+                                )}
                             </li>
                         ))}
                     </ul>
-                    <p className="muted small">Click a server to show only its calls.</p>
+                    <p className="muted small">Click a server to show only its calls. Click a swatch to change its color; this browser remembers it.</p>
                 </section>
             )}
 
             {turns.length > 1 && (
                 <section className="panel">
                     <h2 className="panel__title">{server ? `Calls to ${server} per turn` : 'Tool calls per turn'}</h2>
-                    <div className="activity" role="list" style={server ? serverStyle(server) : undefined} data-server={server ? (isPostHogServer(server) ? 'posthog' : 'other') : undefined}>
-                        {turns.map((turn) => {
-                            const count = turn.items.filter(inScope).length
-                            const errors = turn.items.filter((item) => inScope(item) && item.result?.isError).length
-                            return (
-                                <button
-                                    key={turn.index}
-                                    type="button"
-                                    role="listitem"
-                                    className={`activity__bar${turn.index === activeTurn ? ' is-active' : ''}${errors ? ' has-errors' : ''}`}
-                                    style={{ height: `${count ? Math.max(6, (count / maxTurnTools) * 100) : 3}%` }}
-                                    title={`${turn.prompt ? `Turn ${turn.number}` : 'Session start'}: ${count} ${server ? `calls to ${server}` : 'tool calls'}${errors ? `, ${errors} failed` : ''}`}
-                                    onClick={() => onJump(turn.index)}
-                                />
-                            )
-                        })}
-                    </div>
+                    <ActivityChart turns={turns} servers={servers.map((entry) => entry.server)} activeTurn={activeTurn} onJump={onJump} server={server} />
+                    {!server && servers.length > 0 && (
+                        <p className="legend">
+                            <span className="legend__item">
+                                <span className="legend__swatch" style={{ background: 'var(--builtin-tool)' }} /> Built-in tools
+                            </span>
+                            {servers.map((entry) => (
+                                <span key={entry.server} className="legend__item">
+                                    <span className="legend__swatch" style={{ background: colorFor(entry.server) }} /> {entry.server}
+                                </span>
+                            ))}
+                        </p>
+                    )}
                 </section>
             )}
 
@@ -102,7 +111,7 @@ export function Sidebar({ session, turns, activeTurn, onJump, server, onServerCh
                             <li key={name} className="bars__row" title={name}>
                                 <span className="bars__label">{toolDisplayName(name)}</span>
                                 <span className="bars__track">
-                                    <span className="bars__fill" style={{ width: `${(count / maxCount) * 100}%` }} />
+                                    <span className="bars__fill" style={{ width: `${(count / maxCount) * 100}%`, background: barColor(name) }} />
                                 </span>
                                 <span className="bars__value">{count}</span>
                             </li>

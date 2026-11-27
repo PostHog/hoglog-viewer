@@ -3,6 +3,7 @@ import { parseToolName } from '../format'
 import { groupTurns } from '../parse'
 import type { Item, Session } from '../parse/types'
 import { ServerBadge } from './ServerBadge'
+import { ServerColorsProvider } from './ServerColors'
 import { Sidebar } from './Sidebar'
 import { TurnView } from './TurnView'
 
@@ -80,6 +81,7 @@ export function Viewer({ session }: { session: Session }) {
     }
 
     return (
+        <ServerColorsProvider>
         <div className="viewer">
             <Sidebar session={session} turns={turns} activeTurn={activeTurn} onJump={jump} server={server} onServerChange={setServer} />
             <main className="timeline">
@@ -116,6 +118,7 @@ export function Viewer({ session }: { session: Session }) {
                 ))}
             </main>
         </div>
+        </ServerColorsProvider>
     )
 }
 

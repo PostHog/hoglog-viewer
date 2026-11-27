@@ -17,10 +17,7 @@
     --thinking: #7c3aed;
     --thinking-soft: #f4effe;
     --code-bg: #f4f3ee;
-    /* @posthog/brand tangerine */
-    --posthog: #ff5c1c;
-    --posthog-soft: #fff1eb;
-    --posthog-text: #c23800;
+    --builtin-tool: color-mix(in srgb, var(--tool) 40%, var(--surface-2));
     --radius: 8px;
     --topbar-h: 56px;
     --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -46,9 +43,6 @@
         --thinking: #b9a2ff;
         --thinking-soft: #262038;
         --code-bg: #17181d;
-        --posthog: #ff5c1c;
-        --posthog-soft: #33201a;
-        --posthog-text: #ffbda3;
     }
 }
 
@@ -331,21 +325,37 @@ pre {
 
 .activity__bar {
     flex: 1;
+    display: flex;
+    flex-direction: column-reverse;
     min-width: 3px;
     padding: 0;
+    overflow: hidden;
     border: 0;
     border-radius: 2px 2px 0 0;
-    background: color-mix(in srgb, var(--tool) 45%, transparent);
+    background: none;
     cursor: pointer;
 }
 
-.activity__bar:hover,
+.activity__bar.is-empty {
+    background: var(--border);
+}
+
+.activity__bar:hover {
+    opacity: 0.8;
+}
+
 .activity__bar.is-active {
-    background: var(--tool);
+    box-shadow: 0 0 0 1.5px var(--text);
 }
 
 .activity__bar.has-errors {
-    box-shadow: inset 0 3px 0 var(--error);
+    border-top: 3px solid var(--error);
+}
+
+.activity__segment {
+    display: block;
+    flex-basis: 0;
+    min-height: 1px;
 }
 
 .bars {
@@ -908,15 +918,15 @@ button.chip {
 /* MCP servers */
 
 .server-badge {
-    --server-hue: 210;
+    --server-color: var(--muted);
     display: inline-flex;
     flex: none;
     align-items: center;
     gap: 5px;
-    padding: 1px 8px 1px 6px;
+    padding: 1px 8px 1px 7px;
     border-radius: 999px;
-    background: hsl(var(--server-hue) 70% 50% / 0.14);
-    color: hsl(var(--server-hue) 55% 38%);
+    background: color-mix(in srgb, var(--server-color) 16%, transparent);
+    color: color-mix(in srgb, var(--server-color) 60%, var(--text));
     font-family: var(--font);
     font-size: 11.5px;
     font-weight: 600;
@@ -924,40 +934,37 @@ button.chip {
     white-space: nowrap;
 }
 
+.server-badge svg {
+    flex: none;
+}
+
 .server-badge__dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: hsl(var(--server-hue) 65% 50%);
-}
-
-.server-badge--logo {
-    padding-left: 7px;
-    background: var(--surface-2);
-    color: var(--text);
-}
-
-.server-badge__logo {
-    flex: none;
+    background: var(--server-color);
 }
 
 .server-badge--posthog {
     padding-left: 4px;
-    background: var(--posthog-soft);
-    color: var(--posthog-text);
-}
-
-.server-badge--posthog svg {
-    flex: none;
 }
 
 .tool--mcp {
-    border-left: 3px solid var(--server-color, var(--muted));
+    border-left: 3px solid var(--server-color);
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--server-color) 22%, var(--surface)),
+        color-mix(in srgb, var(--server-color) 6%, var(--surface)) 55%,
+        var(--surface)
+    );
 }
 
-.tool--posthog {
-    border-left-color: var(--posthog);
-    background: linear-gradient(90deg, var(--posthog-soft), var(--surface) 45%);
+.tool--mcp .tool__head:hover {
+    background: color-mix(in srgb, var(--server-color) 10%, transparent);
+}
+
+.tool--mcp .tool__name {
+    color: color-mix(in srgb, var(--server-color) 65%, var(--text));
 }
 
 .servers {
@@ -969,12 +976,19 @@ button.chip {
     list-style: none;
 }
 
+.servers__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .servers__row {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    width: 100%;
+    min-width: 0;
     padding: 4px 6px;
     border: 1px solid transparent;
     border-radius: 6px;
@@ -995,24 +1009,59 @@ button.chip {
     font-size: 12px;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
-.activity[data-server='other'] .activity__bar {
-    background: color-mix(in srgb, var(--server-color) 45%, transparent);
+.servers__reset {
+    font-size: 11px;
 }
 
-.activity[data-server='other'] .activity__bar:hover,
-.activity[data-server='other'] .activity__bar.is-active {
-    background: var(--server-color);
+.color-swatch {
+    position: relative;
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.2);
+    cursor: pointer;
 }
 
-.activity[data-server='posthog'] .activity__bar {
-    background: color-mix(in srgb, var(--posthog) 45%, transparent);
+.color-swatch:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
 }
 
-.activity[data-server='posthog'] .activity__bar:hover,
-.activity[data-server='posthog'] .activity__bar.is-active {
-    background: var(--posthog);
+.color-swatch input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.legend__swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
 }
 
 .active-filter {
@@ -1020,10 +1069,4 @@ button.chip {
     align-items: center;
     gap: 8px;
     font-size: 13px;
-}
-
-@media (prefers-color-scheme: dark) {
-    .server-badge:not(.server-badge--logo, .server-badge--posthog) {
-        color: hsl(var(--server-hue) 80% 72%);
-    }
 }
