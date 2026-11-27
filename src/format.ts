@@ -54,13 +54,41 @@ export function formatCost(usd: number): string {
     return usd.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })
 }
 
-/** `mcp__posthog__exec` reads better as `posthog · exec`. */
-export function toolDisplayName(name: string): string {
-    const mcp = /^mcp__(.+?)__(.+)$/.exec(name)
-    if (mcp) {
-        return `${mcp[1].replace(/^claude_ai_/, '')} · ${mcp[2]}`
+export interface ToolName {
+    /** The MCP server the tool came from, when it is an MCP tool. */
+    server?: string
+    tool: string
+}
+
+/**
+ * Claude Code names MCP tools `mcp__<server>__<tool>`, with connector servers prefixed
+ * `claude_ai_` and plugin servers `plugin_<plugin>_`. Codex uses `<server>__<tool>`.
+ */
+export function parseToolName(name: string): ToolName {
+    const match = /^(?:mcp__)?(.+?)__(.+)$/.exec(name)
+    if (!match) {
+        return { tool: name }
     }
-    return name
+    const server = match[1].replace(/^claude_ai_/, '').replace(/^plugin_[^_]+_/, '')
+    return { server, tool: match[2] }
+}
+
+export function toolDisplayName(name: string): string {
+    const { server, tool } = parseToolName(name)
+    return server ? `${server} · ${tool}` : tool
+}
+
+export function isPostHogServer(server: string): boolean {
+    return server.toLowerCase().includes('posthog')
+}
+
+/** A stable hue per server name, so each server keeps its color across the page. */
+export function serverHue(server: string): number {
+    let hash = 0
+    for (const char of server.toLowerCase()) {
+        hash = (hash * 31 + char.charCodeAt(0)) % 360
+    }
+    return hash
 }
 
 const SUMMARY_KEYS = ['command', 'cmd', 'file_path', 'path', 'filePath', 'notebook_path', 'pattern', 'url', 'query', 'skill', 'description', 'prompt', 'subject']

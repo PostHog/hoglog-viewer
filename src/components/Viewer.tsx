@@ -1,6 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { parseToolName } from '../format'
 import { groupTurns } from '../parse'
 import type { Item, Session } from '../parse/types'
+import { ServerBadge } from './ServerBadge'
 import { Sidebar } from './Sidebar'
 import { TurnView } from './TurnView'
 
@@ -25,6 +27,7 @@ export function Viewer({ session }: { session: Session }) {
     const deferredQuery = useDeferredValue(query.trim().toLowerCase())
     const [expandTools, setExpandTools] = useState(false)
     const [activeTurn, setActiveTurn] = useState<number>()
+    const [server, setServer] = useState<string>()
 
     const haystacks = useMemo(() => {
         const map = new Map<string, string>()
@@ -36,6 +39,9 @@ export function Viewer({ session }: { session: Session }) {
 
     const visibleTurns = useMemo(() => {
         const keep = (item: Item): boolean => {
+            if (server && !(item.kind === 'tool' && parseToolName(item.name).server === server)) {
+                return false
+            }
             if (item.sidechain && !filters.subagents) {
                 return false
             }
@@ -46,14 +52,14 @@ export function Viewer({ session }: { session: Session }) {
         }
         return turns
             .map((turn) => {
-                const promptMatches = !deferredQuery || (turn.prompt ? (haystacks.get(turn.prompt.id)?.includes(deferredQuery) ?? false) : false)
+                const promptMatches = server ? false : !deferredQuery || (turn.prompt ? (haystacks.get(turn.prompt.id)?.includes(deferredQuery) ?? false) : false)
                 const items = turn.items.filter(keep)
                 return { turn, items, visible: items.length > 0 || (Boolean(turn.prompt) && promptMatches) }
             })
             .filter((entry) => entry.visible)
-    }, [turns, filters, deferredQuery, haystacks])
+    }, [turns, filters, deferredQuery, haystacks, server])
 
-    const matchCount = deferredQuery ? visibleTurns.reduce((sum, entry) => sum + entry.items.length, 0) : 0
+    const matchCount = deferredQuery || server ? visibleTurns.reduce((sum, entry) => sum + entry.items.length, 0) : 0
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -75,7 +81,7 @@ export function Viewer({ session }: { session: Session }) {
 
     return (
         <div className="viewer">
-            <Sidebar session={session} turns={turns} activeTurn={activeTurn} onJump={jump} />
+            <Sidebar session={session} turns={turns} activeTurn={activeTurn} onJump={jump} server={server} onServerChange={setServer} />
             <main className="timeline">
                 <div className="toolbar">
                     <input className="search" type="search" placeholder="Search prompts, replies, commands and output" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -90,7 +96,15 @@ export function Viewer({ session }: { session: Session }) {
                             {expandTools ? 'Collapse tool calls' : 'Expand tool calls'}
                         </button>
                     </div>
-                    {deferredQuery && (
+                    {server && (
+                        <div className="active-filter">
+                            Only calls to <ServerBadge server={server} />
+                            <button type="button" className="link-button" onClick={() => setServer(undefined)}>
+                                Show everything
+                            </button>
+                        </div>
+                    )}
+                    {(deferredQuery || server) && (
                         <p className="muted small">
                             {matchCount} matching {matchCount === 1 ? 'item' : 'items'} in {visibleTurns.length} {visibleTurns.length === 1 ? 'turn' : 'turns'}
                         </p>

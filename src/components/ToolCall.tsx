@@ -1,20 +1,24 @@
-import { between, formatDuration, toolDisplayName, toolSummary } from '../format'
+import { between, formatDuration, isPostHogServer, parseToolName, toolSummary } from '../format'
 import type { ToolItem } from '../parse/types'
 import { isObject } from '../parse/util'
 import { LongText } from './LongText'
+import { ServerBadge, serverStyle } from './ServerBadge'
 
 export function ToolCall({ tool, open, onToggle }: { tool: ToolItem; open: boolean; onToggle: () => void }) {
     const duration = between(tool.timestamp, tool.result?.timestamp)
     const status = !tool.result ? 'pending' : tool.result.isError ? 'error' : 'ok'
     const summary = toolSummary(tool)
+    const { server, tool: toolName } = parseToolName(tool.name)
+    const serverClass = server ? (isPostHogServer(server) ? ' tool--mcp tool--posthog' : ' tool--mcp') : ''
 
     return (
-        <div className={`tool tool--${status}${tool.sidechain ? ' is-sidechain' : ''}`}>
+        <div className={`tool tool--${status}${serverClass}${tool.sidechain ? ' is-sidechain' : ''}`} style={server ? serverStyle(server) : undefined}>
             <button type="button" className="tool__head" onClick={onToggle} aria-expanded={open}>
                 <span className="tool__chevron" aria-hidden>
                     {open ? '▾' : '▸'}
                 </span>
-                <span className="tool__name">{toolDisplayName(tool.name)}</span>
+                {server && <ServerBadge server={server} />}
+                <span className="tool__name">{toolName}</span>
                 <span className="tool__summary">{summary}</span>
                 <span className="tool__meta">
                     {duration !== undefined && duration >= 0 && <span>{formatDuration(duration)}</span>}

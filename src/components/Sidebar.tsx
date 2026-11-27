@@ -1,11 +1,23 @@
-import { between, formatCost, formatDateTime, formatDuration, formatNumber, toolDisplayName, truncate } from '../format'
-import type { Session, Turn } from '../parse/types'
+import { between, formatCost, formatDateTime, formatDuration, formatNumber, isPostHogServer, parseToolName, toolDisplayName, truncate } from '../format'
+import type { Item, Session, ToolItem, Turn } from '../parse/types'
+import { ServerBadge, serverStyle } from './ServerBadge'
 
 const TOP_TOOLS = 12
 const TIMESTAMP_LABELS = new Set(['Started', 'Last activity'])
 
-export function Sidebar({ session, turns, activeTurn, onJump }: { session: Session; turns: Turn[]; activeTurn?: number; onJump: (index: number) => void }) {
+export interface SidebarProps {
+    session: Session
+    turns: Turn[]
+    activeTurn?: number
+    onJump: (index: number) => void
+    server?: string
+    onServerChange: (server: string | undefined) => void
+}
+
+export function Sidebar({ session, turns, activeTurn, onJump, server, onServerChange }: SidebarProps) {
     const tools = session.items.filter((item) => item.kind === 'tool')
+    const servers = mcpServers(tools)
+    const inScope = (item: Item): item is ToolItem => item.kind === 'tool' && (!server || parseToolName(item.name).server === server)
     const failed = tools.filter((tool) => tool.result?.isError).length
     const counts = new Map<string, number>()
     for (const tool of tools) {
@@ -16,7 +28,7 @@ export function Sidebar({ session, turns, activeTurn, onJump }: { session: Sessi
     const first = turns.find((turn) => turn.startedAt)?.startedAt
     const last = [...turns].reverse().find((turn) => turn.endedAt)?.endedAt
     const prompts = turns.filter((turn) => turn.prompt).length
-    const maxTurnTools = Math.max(1, ...turns.map((turn) => turn.items.filter((item) => item.kind === 'tool').length))
+    const maxTurnTools = Math.max(1, ...turns.map((turn) => turn.items.filter(inScope).length))
 
     return (
         <aside className="sidebar">
@@ -33,21 +45,47 @@ export function Sidebar({ session, turns, activeTurn, onJump }: { session: Sessi
                 </dl>
             </section>
 
+            {servers.length > 0 && (
+                <section className="panel">
+                    <h2 className="panel__title">MCP servers</h2>
+                    <ul className="servers">
+                        {servers.map((entry) => (
+                            <li key={entry.server}>
+                                <button
+                                    type="button"
+                                    className={`servers__row${entry.server === server ? ' is-active' : ''}`}
+                                    aria-pressed={entry.server === server}
+                                    title={entry.server === server ? 'Show every item again' : `Show only calls to ${entry.server}`}
+                                    onClick={() => onServerChange(entry.server === server ? undefined : entry.server)}
+                                >
+                                    <ServerBadge server={entry.server} />
+                                    <span className="servers__counts">
+                                        {entry.calls} {entry.calls === 1 ? 'call' : 'calls'}
+                                        {entry.failed > 0 && <span className="text-error"> · {entry.failed} failed</span>}
+                                    </span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="muted small">Click a server to show only its calls.</p>
+                </section>
+            )}
+
             {turns.length > 1 && (
                 <section className="panel">
-                    <h2 className="panel__title">Tool calls per turn</h2>
-                    <div className="activity" role="list">
+                    <h2 className="panel__title">{server ? `Calls to ${server} per turn` : 'Tool calls per turn'}</h2>
+                    <div className="activity" role="list" style={server ? serverStyle(server) : undefined} data-server={server ? (isPostHogServer(server) ? 'posthog' : 'other') : undefined}>
                         {turns.map((turn) => {
-                            const count = turn.items.filter((item) => item.kind === 'tool').length
-                            const errors = turn.items.filter((item) => item.kind === 'tool' && item.result?.isError).length
+                            const count = turn.items.filter(inScope).length
+                            const errors = turn.items.filter((item) => inScope(item) && item.result?.isError).length
                             return (
                                 <button
                                     key={turn.index}
                                     type="button"
                                     role="listitem"
                                     className={`activity__bar${turn.index === activeTurn ? ' is-active' : ''}${errors ? ' has-errors' : ''}`}
-                                    style={{ height: `${Math.max(6, (count / maxTurnTools) * 100)}%` }}
-                                    title={`${turn.prompt ? `Turn ${turn.number}` : 'Session start'}: ${count} tool calls${errors ? `, ${errors} failed` : ''}`}
+                                    style={{ height: `${count ? Math.max(6, (count / maxTurnTools) * 100) : 3}%` }}
+                                    title={`${turn.prompt ? `Turn ${turn.number}` : 'Session start'}: ${count} ${server ? `calls to ${server}` : 'tool calls'}${errors ? `, ${errors} failed` : ''}`}
                                     onClick={() => onJump(turn.index)}
                                 />
                             )
@@ -122,4 +160,28 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'er
             <dd className={tone === 'error' ? 'text-error' : undefined}>{value}</dd>
         </div>
     )
+}
+
+interface ServerUsage {
+    server: string
+    calls: number
+    failed: number
+}
+
+/** MCP servers by call count, with PostHog's always first. */
+function mcpServers(tools: ToolItem[]): ServerUsage[] {
+    const usage = new Map<string, ServerUsage>()
+    for (const tool of tools) {
+        const { server } = parseToolName(tool.name)
+        if (!server) {
+            continue
+        }
+        const entry = usage.get(server) ?? { server, calls: 0, failed: 0 }
+        entry.calls++
+        if (tool.result?.isError) {
+            entry.failed++
+        }
+        usage.set(server, entry)
+    }
+    return [...usage.values()].sort((a, b) => Number(isPostHogServer(b.server)) - Number(isPostHogServer(a.server)) || b.calls - a.calls)
 }

@@ -12,6 +12,7 @@
     "package": "pnpm build && rm -f agent-log-viewer.zip && cd dist && zip -qr ../agent-log-viewer.zip ."
   },
   "dependencies": {
+    "@posthog/brand": "^0.17.9",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
