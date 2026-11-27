@@ -216,10 +216,6 @@ pre {
     font-weight: 600;
 }
 
-.formats {
-    margin-top: 32px;
-}
-
 .drop-overlay {
     position: fixed;
     inset: 0;
