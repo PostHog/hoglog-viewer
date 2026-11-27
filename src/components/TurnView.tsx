@@ -1,5 +1,5 @@
 import { memo, useState } from 'react'
-import { between, formatDuration, formatTime } from '../format'
+import { between, formatDuration, formatTime, truncate } from '../format'
 import type { Item, Turn } from '../parse/types'
 import { ItemList, PromptEntry } from './ItemList'
 import { UserMessage } from './ItemView'
@@ -34,8 +34,13 @@ export const TurnView = memo(function TurnView({ turn, items, showPrompt, expand
                     {errorCount ? <span className="text-error"> · {errorCount} failed</span> : null}
                     {userWaitMs !== undefined && userWaitMs >= GAP_MARKER_MS ? ` · sent ${formatDuration(userWaitMs)} after the previous turn` : ''}
                 </span>
+                {collapsed && turn.prompt && (
+                    <button type="button" className="turn__preview" onClick={() => setCollapsed(false)} title="Expand this turn">
+                        {truncate(turn.prompt.text || '(image)', 140)}
+                    </button>
+                )}
             </header>
-            {turn.prompt && showPrompt && (
+            {!collapsed && turn.prompt && showPrompt && (
                 <PromptEntry timestamp={turn.prompt.timestamp}>
                     <UserMessage item={turn.prompt} />
                 </PromptEntry>
@@ -45,7 +50,6 @@ export const TurnView = memo(function TurnView({ turn, items, showPrompt, expand
                     <ItemList items={items} startedAt={turn.prompt?.timestamp} expandTools={expandTools} />
                 </div>
             )}
-            {collapsed && items.length > 0 && <p className="muted turn__hidden">{items.length} items hidden</p>}
         </section>
     )
 })

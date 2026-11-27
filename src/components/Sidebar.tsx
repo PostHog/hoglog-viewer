@@ -88,7 +88,6 @@ export function Sidebar({ empty, session, turns, activeTurn, onJump, server, onS
                                 </li>
                             ))}
                         </ul>
-                        <p className="muted small">Click a server to show only its calls, or its swatch to change its color.</p>
                     </>
                 )}
             </section>

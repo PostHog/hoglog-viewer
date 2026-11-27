@@ -647,9 +647,23 @@ pre {
     margin-top: 8px;
 }
 
-.turn__hidden {
-    margin: 6px 0 0;
-    font-size: 12px;
+.turn__preview {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font-size: 12.5px;
+    text-align: left;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.turn__preview:hover {
+    color: var(--text);
 }
 
 /* Messages */
