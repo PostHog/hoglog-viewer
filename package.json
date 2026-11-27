@@ -9,7 +9,6 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "package": "pnpm build && rm -f hoglog-viewer.zip && cd dist && zip -qr ../hoglog-viewer.zip .",
     "format": "prettier --write src",
     "format:check": "prettier --check src"
   },

@@ -45,13 +45,8 @@ pnpm typecheck
 
 ## Deploying to HostHog
 
-The app is published by hand to HostHog, which serves static sites behind employee login.
-HostHog takes the site slug from the zip name, so `hoglog-viewer.zip` publishes to `https://hoglog-viewer.hosthog.dev`.
+The site lives at https://hoglog-viewer.hosthog.dev, behind PostHog employee login.
+HostHog is connected to this repository: every push to `main` rebuilds and publishes the site, and every pull request gets its own preview link.
+There is no deploy step to run.
 
-```bash
-pnpm install --frozen-lockfile
-pnpm package    # builds dist/ and writes hoglog-viewer.zip
-```
-
-Then publish `hoglog-viewer.zip` with `hosthog publish`, the HostHog MCP `publish` tool, or by dragging it into HostHog.
-The build uses relative asset paths, so it works from any path on the host.
+To check a production build locally, run `pnpm build && pnpm preview`.
