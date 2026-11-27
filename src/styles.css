@@ -931,6 +931,16 @@ button.chip {
     background: hsl(var(--server-hue) 65% 50%);
 }
 
+.server-badge--logo {
+    padding-left: 7px;
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.server-badge__logo {
+    flex: none;
+}
+
 .server-badge--posthog {
     padding-left: 4px;
     background: var(--posthog-soft);
@@ -942,7 +952,7 @@ button.chip {
 }
 
 .tool--mcp {
-    border-left: 3px solid hsl(var(--server-hue) 65% 50%);
+    border-left: 3px solid var(--server-color, var(--muted));
 }
 
 .tool--posthog {
@@ -988,12 +998,12 @@ button.chip {
 }
 
 .activity[data-server='other'] .activity__bar {
-    background: hsl(var(--server-hue) 65% 50% / 0.45);
+    background: color-mix(in srgb, var(--server-color) 45%, transparent);
 }
 
 .activity[data-server='other'] .activity__bar:hover,
 .activity[data-server='other'] .activity__bar.is-active {
-    background: hsl(var(--server-hue) 65% 50%);
+    background: var(--server-color);
 }
 
 .activity[data-server='posthog'] .activity__bar {
@@ -1013,7 +1023,7 @@ button.chip {
 }
 
 @media (prefers-color-scheme: dark) {
-    .server-badge {
+    .server-badge:not(.server-badge--logo, .server-badge--posthog) {
         color: hsl(var(--server-hue) 80% 72%);
     }
 }

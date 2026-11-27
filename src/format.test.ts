@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseToolName } from './format'
+import { serverLogo } from './serverLogos'
 
 describe('parseToolName', () => {
     it.each([
@@ -10,5 +11,18 @@ describe('parseToolName', () => {
         ['Bash', { tool: 'Bash' }],
     ])('reads %s', (name, expected) => {
         expect(parseToolName(name)).toEqual(expected)
+    })
+})
+
+describe('serverLogo', () => {
+    it.each([
+        ['Vercel', 'Vercel'],
+        ['resend', 'Resend'],
+        ['google_drive', 'Google Drive'],
+        ['acme-github', 'GitHub'],
+        ['renderer', undefined],
+        ['internal-tools', undefined],
+    ])('matches %s', (server, title) => {
+        expect(serverLogo(server)?.title).toBe(title)
     })
 })
