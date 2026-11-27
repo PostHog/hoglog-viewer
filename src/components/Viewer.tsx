@@ -40,7 +40,7 @@ export interface ViewerProps {
     /** Undefined until a log is open; every panel then shows its empty state. */
     session?: Session
     dragging: boolean
-    /** A linked log is downloading. */
+    /** Waiting for PostHog Admin to hand a log over. */
     loading?: boolean
     onOpenFiles: () => void
 }

@@ -4,7 +4,7 @@ export function Dropzone({ dragging, loading, onOpenFiles }: { dragging: boolean
         <div className="drop-area">
             {loading ? (
                 <div className="dropzone is-loading" role="status">
-                    <span className="dropzone__title">Loading the linked log…</span>
+                    <span className="dropzone__title">Waiting for the log from PostHog Admin…</span>
                 </div>
             ) : (
                 <button type="button" className={`dropzone${dragging ? ' is-dragging' : ''}`} onClick={onOpenFiles}>

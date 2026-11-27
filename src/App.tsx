@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Viewer } from './components/Viewer'
 import { parseLogFiles, type LogFile } from './parse'
 import type { Session } from './parse/types'
-import { fetchLog, locationWithoutLogUrls, logUrlsFrom, RemoteLogError } from './remote'
+import { HANDOFF_HASH, HANDOFF_VERSION, READY_MESSAGE, readHandoff } from './handoff'
+
+const HANDOFF_TIMEOUT_MS = 15_000
+const HANDOFF_LOST = 'Nothing arrived from PostHog Admin. Go back to the transcript and click Open in Hoglog viewer again.'
+
+/** The main log first, so a subagent file is never mistaken for it. */
+function mainLogFirst(files: LogFile[]): LogFile[] {
+    return [...files].sort((a, b) => Number(a.name.startsWith('agent-')) - Number(b.name.startsWith('agent-')))
+}
 
 interface Loaded {
     name: string
@@ -13,7 +21,9 @@ export function App() {
     const [loaded, setLoaded] = useState<Loaded>()
     const [error, setError] = useState<string>()
     const [dragging, setDragging] = useState(false)
-    const [remoteLoading, setRemoteLoading] = useState(false)
+    // Read once, before the effect below clears the hash from the address bar.
+    const [handoffRequested] = useState(() => window.location.hash === HANDOFF_HASH)
+    const [handoffWaiting, setHandoffWaiting] = useState(handoffRequested)
     const fileInput = useRef<HTMLInputElement>(null)
 
     const load = useCallback((files: LogFile[]) => {
@@ -34,30 +44,46 @@ export function App() {
         async (list: FileList | File[] | undefined | null) => {
             const files = [...(list ?? [])]
             if (files.length) {
-                // The main log first, so a lone subagent file is never mistaken for it.
-                files.sort((a, b) => Number(a.name.startsWith('agent-')) - Number(b.name.startsWith('agent-')))
-                load(await Promise.all(files.map(async (file) => ({ name: file.name, text: await file.text() }))))
+                load(mainLogFirst(await Promise.all(files.map(async (file) => ({ name: file.name, text: await file.text() })))))
             }
         },
         [load]
     )
 
-    // Opened with ?url= or #url=: fetch the log, and drop the signed link from the address bar first.
+    // Opened by PostHog Admin: say we are ready, then accept the transcript it posts to this tab.
     useEffect(() => {
-        const urls = logUrlsFrom(window.location.search, window.location.hash)
-        if (!urls.length) {
+        if (!handoffRequested) {
             return
         }
-        window.history.replaceState(null, '', locationWithoutLogUrls(window.location.pathname, window.location.search, window.location.hash))
-        setRemoteLoading(true)
-        Promise.all(urls.map(fetchLog))
-            .then((files) => {
-                files.sort((a, b) => Number(a.name.startsWith('agent-')) - Number(b.name.startsWith('agent-')))
-                load(files)
-            })
-            .catch((caught: unknown) => setError(caught instanceof RemoteLogError ? `Could not open the linked log. ${caught.message}` : `Could not open the linked log: ${String(caught)}`))
-            .finally(() => setRemoteLoading(false))
-    }, [load])
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        const opener: unknown = window.opener
+        if (!opener) {
+            setHandoffWaiting(false)
+            setError(HANDOFF_LOST)
+            return
+        }
+        let received = false
+        const onMessage = (event: MessageEvent): void => {
+            const files = readHandoff(event, opener)
+            if (files) {
+                received = true
+                setHandoffWaiting(false)
+                load(mainLogFirst(files))
+            }
+        }
+        window.addEventListener('message', onMessage)
+        window.opener.postMessage({ type: READY_MESSAGE, version: HANDOFF_VERSION }, '*')
+        const timeout = window.setTimeout(() => {
+            if (!received) {
+                setHandoffWaiting(false)
+                setError(HANDOFF_LOST)
+            }
+        }, HANDOFF_TIMEOUT_MS)
+        return () => {
+            window.removeEventListener('message', onMessage)
+            window.clearTimeout(timeout)
+        }
+    }, [handoffRequested, load])
 
     useEffect(() => {
         const onDragOver = (event: DragEvent): void => {
@@ -147,7 +173,7 @@ export function App() {
                 key={loaded ? loaded.name + loaded.session.items.length : 'empty'}
                 session={loaded?.session}
                 dragging={dragging}
-                loading={remoteLoading}
+                loading={handoffWaiting}
                 onOpenFiles={() => fileInput.current?.click()}
             />
             {dragging && loaded && <div className="drop-overlay">Drop to open this log</div>}

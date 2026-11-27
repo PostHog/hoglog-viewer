@@ -17,15 +17,16 @@ The file is parsed in the browser and never leaves it. There is no backend, no s
 - The sidebar has totals (duration, prompts, tool calls, failures, tokens, cost), tool calls per turn, the most used tools, session details, and a turn outline you can jump through.
 - Search covers prompts, replies, tool input, and tool output. Filters hide tool calls, reasoning, injected context (system reminders, hook output, instruction files), or subagent activity.
 
-## Opening a log from a link
+## Opening a log from PostHog Admin
 
-Open the viewer with `#url=<link>` (or `?url=<link>`) and it fetches the file and opens it, as if it had been dropped in.
-Repeat the parameter to open a main log together with its subagent files.
-The viewer removes the link from the address bar as soon as it reads it.
+PostHog Admin hands a transcript to the viewer without a link or a server in between:
 
-- Prefer `#url=`: the part after `#` never leaves the browser, so a signed link stays out of server logs.
-- Only `https` links are accepted (plain `http` only for `localhost`).
-- The file is fetched by the browser, so the server has to allow `https://hoglog-viewer.hosthog.dev` to read it (CORS). For S3 presigned links, that means the bucket's CORS rules list this origin for `GET`.
+1. It opens `https://hoglog-viewer.hosthog.dev/#handoff` in a new tab.
+2. The viewer posts `{ type: "hoglog-viewer:ready", version: 1 }` to the tab that opened it.
+3. PostHog Admin answers with `{ type: "hoglog-viewer:open", files: [{ name, text }] }`, sent only to the viewer's origin.
+
+The viewer accepts that message only from the tab that opened it, and only when that tab is on `us.posthog.com`, `eu.posthog.com` or `localhost:8010` (see `src/handoff.ts`).
+The opening page must keep its link to the tab it opens, so it sends `Cross-Origin-Opener-Policy: same-origin-allow-popups`.
 
 ## Supported formats
 
