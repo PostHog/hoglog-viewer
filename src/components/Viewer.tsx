@@ -4,6 +4,8 @@ import { between, parseToolName } from '../format'
 import { groupTurns, isAgentTool } from '../parse'
 import type { Item, Session, ToolItem } from '../parse/types'
 import { mcpServers } from '../servers'
+import { usePersistentState } from '../usePersistentState'
+import { Dropzone } from './Dropzone'
 import { FilesPanel } from './FilesPanel'
 import { ServerBadge } from './ServerBadge'
 import { ServerColorsProvider } from './ServerColors'
@@ -32,7 +34,18 @@ const DOCK_COLLAPSED_PX = 34
 const FLASH_MS = 1600
 const FIND_ATTEMPTS = 20
 
-export function Viewer({ session }: { session: Session }) {
+const EMPTY_SESSION: Session = { format: '', meta: [], items: [], skipped: 0 }
+
+export interface ViewerProps {
+    /** Undefined until a log is open; every panel then shows its empty state. */
+    session?: Session
+    dragging: boolean
+    onOpenFiles: () => void
+}
+
+export function Viewer({ session: loadedSession, dragging, onOpenFiles }: ViewerProps) {
+    const session = loadedSession ?? EMPTY_SESSION
+    const empty = loadedSession === undefined
     const turns = useMemo(() => groupTurns(session.items), [session])
     const subagentRuns = useMemo(() => session.subagents ?? [], [session])
     const allItems = useMemo(() => [...session.items, ...subagentRuns.flatMap((run) => run.session.items)], [session, subagentRuns])
@@ -47,10 +60,10 @@ export function Viewer({ session }: { session: Session }) {
     const [server, setServer] = useState<string>()
     const [focus, setFocus] = useState<Focus>()
     const [currentTime, setCurrentTime] = useState<number>()
-    const [filesOpen, setFilesOpen] = useState(false)
-    const [dockCollapsed, setDockCollapsed] = useState(false)
-    const [dockHidden, setDockHidden] = useState(false)
-    const [dockHeight, setDockHeight] = useState(DOCK_DEFAULT_PX)
+    const [filesOpen, setFilesOpen] = usePersistentState('files-open', false)
+    const [dockCollapsed, setDockCollapsed] = usePersistentState('timeline-collapsed', false)
+    const [dockHidden, setDockHidden] = usePersistentState('timeline-hidden', false)
+    const [dockHeight, setDockHeight] = usePersistentState('timeline-height', DOCK_DEFAULT_PX)
     const thread = useRef<HTMLElement>(null)
 
     const haystacks = useMemo(() => {
@@ -202,54 +215,66 @@ export function Viewer({ session }: { session: Session }) {
         <ServerColorsProvider>
             <SessionContext.Provider value={sessionContext}>
                 <div className={`workspace${filesOpen ? ' has-drawer' : ''}${dockHidden ? ' dock-hidden' : ''}`} style={layoutStyle}>
-                    <Sidebar session={session} turns={turns} activeTurn={activeTurn} onJump={jumpToTurn} server={server} onServerChange={setServer} />
+                    <Sidebar empty={empty} session={session} turns={turns} activeTurn={activeTurn} onJump={jumpToTurn} server={server} onServerChange={setServer} />
 
                     <main className="thread" ref={thread}>
-                        <div className="toolbar">
-                            <input className="search" type="search" placeholder="Search prompts, replies, commands and output" value={query} onChange={(event) => setQuery(event.target.value)} />
-                            <div className="toggles">
-                                {(Object.keys(FILTER_LABELS) as (keyof Filters)[]).map((key) =>
-                                    key === 'subagents' && !subagentRuns.length && !session.items.some(isSubagentItem) ? null : (
-                                        <label key={key} className="toggle">
-                                            <input type="checkbox" checked={filters[key]} onChange={() => setFilters({ ...filters, [key]: !filters[key] })} />
-                                            {FILTER_LABELS[key]}
-                                        </label>
-                                    )
-                                )}
-                                {server && (
-                                    <span className="active-filter">
-                                        Only <ServerBadge server={server} />
-                                        <button type="button" className="link-button" onClick={() => setServer(undefined)}>
-                                            Show everything
+                        {empty ? (
+                            <Dropzone dragging={dragging} onOpenFiles={onOpenFiles} />
+                        ) : (
+                            <>
+                                <div className="toolbar">
+                                    <input
+                                        className="search"
+                                        type="search"
+                                        placeholder="Search prompts, replies, commands and output"
+                                        value={query}
+                                        onChange={(event) => setQuery(event.target.value)}
+                                    />
+                                    <div className="toggles">
+                                        {(Object.keys(FILTER_LABELS) as (keyof Filters)[]).map((key) =>
+                                            key === 'subagents' && !subagentRuns.length && !session.items.some(isSubagentItem) ? null : (
+                                                <label key={key} className="toggle">
+                                                    <input type="checkbox" checked={filters[key]} onChange={() => setFilters({ ...filters, [key]: !filters[key] })} />
+                                                    {FILTER_LABELS[key]}
+                                                </label>
+                                            )
+                                        )}
+                                        {server && (
+                                            <span className="active-filter">
+                                                Only <ServerBadge server={server} />
+                                                <button type="button" className="link-button" onClick={() => setServer(undefined)}>
+                                                    Show everything
+                                                </button>
+                                            </span>
+                                        )}
+                                        {(deferredQuery || server) && (
+                                            <span className="muted small">
+                                                {matchCount} {matchCount === 1 ? 'item' : 'items'} in {visibleTurns.length} {visibleTurns.length === 1 ? 'turn' : 'turns'}
+                                            </span>
+                                        )}
+                                        <button type="button" className="button button--small toggles__end" onClick={() => setExpandTools(!expandTools)}>
+                                            {expandTools ? 'Collapse tool calls' : 'Expand tool calls'}
                                         </button>
-                                    </span>
-                                )}
-                                {(deferredQuery || server) && (
-                                    <span className="muted small">
-                                        {matchCount} {matchCount === 1 ? 'item' : 'items'} in {visibleTurns.length} {visibleTurns.length === 1 ? 'turn' : 'turns'}
-                                    </span>
-                                )}
-                                <button type="button" className="button button--small toggles__end" onClick={() => setExpandTools(!expandTools)}>
-                                    {expandTools ? 'Collapse tool calls' : 'Expand tool calls'}
-                                </button>
-                            </div>
-                        </div>
-                        {visibleTurns.length === 0 && <p className="empty">Nothing matches the current search and filters.</p>}
-                        {visibleTurns.map(({ turn, items }) => (
-                            <TurnView
-                                key={turn.index}
-                                turn={turn}
-                                items={items}
-                                showPrompt
-                                expandTools={expandTools}
-                                userWaitMs={turns[turn.index - 1]?.prompt ? between(turns[turn.index - 1].endedAt, turn.prompt?.timestamp) : undefined}
-                            />
-                        ))}
+                                    </div>
+                                </div>
+                                {visibleTurns.length === 0 && <p className="empty">Nothing matches the current search and filters.</p>}
+                                {visibleTurns.map(({ turn, items }) => (
+                                    <TurnView
+                                        key={turn.index}
+                                        turn={turn}
+                                        items={items}
+                                        showPrompt
+                                        expandTools={expandTools}
+                                        userWaitMs={turns[turn.index - 1]?.prompt ? between(turns[turn.index - 1].endedAt, turn.prompt?.timestamp) : undefined}
+                                    />
+                                ))}
+                            </>
+                        )}
                     </main>
 
                     {filesOpen && (
                         <aside className="drawer" aria-label="Files touched">
-                            <FilesPanel files={files} />
+                            <FilesPanel files={files} empty={empty} />
                         </aside>
                     )}
 
@@ -275,6 +300,7 @@ export function Viewer({ session }: { session: Session }) {
                             collapsed={dockCollapsed}
                             onToggleCollapsed={() => setDockCollapsed(!dockCollapsed)}
                             onHide={() => setDockHidden(true)}
+                            empty={empty}
                         />
                     </section>
                 </div>

@@ -117,8 +117,7 @@ function ToolInput({ tool }: { tool: ToolItem }) {
             <ul className="todos">
                 {input.todos.filter(isObject).map((todo, index) => (
                     <li key={index} className={`todo todo--${String(todo.status ?? 'pending')}`}>
-                        <span aria-hidden>{todo.status === 'completed' ? '☑' : todo.status === 'in_progress' ? '◐' : '☐'}</span>{' '}
-                        {String(todo.content ?? todo.subject ?? '')}
+                        <span aria-hidden>{todo.status === 'completed' ? '☑' : todo.status === 'in_progress' ? '◐' : '☐'}</span> {String(todo.content ?? todo.subject ?? '')}
                     </li>
                 ))}
             </ul>

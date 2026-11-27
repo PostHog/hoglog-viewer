@@ -187,13 +187,7 @@ pre {
     color: var(--error);
 }
 
-/* Landing */
-
-.landing {
-    max-width: 720px;
-    margin: 64px auto;
-    padding: 0 20px;
-}
+/* Dropzone */
 
 .dropzone {
     display: flex;
@@ -206,7 +200,9 @@ pre {
     border-radius: 14px;
     background: var(--surface);
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition:
+        border-color 0.15s,
+        background 0.15s;
 }
 
 .dropzone:hover,
@@ -222,17 +218,6 @@ pre {
 
 .formats {
     margin-top: 32px;
-}
-
-.formats h2 {
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-}
-
-.formats li {
-    margin: 6px 0;
 }
 
 .drop-overlay {
@@ -253,10 +238,6 @@ pre {
     display: flex;
     flex-direction: column;
     height: 100vh;
-}
-
-.app > .landing {
-    overflow-y: auto;
 }
 
 .workspace {
@@ -1067,12 +1048,7 @@ button.chip {
 
 .tool--mcp {
     border-left: 3px solid var(--server-color);
-    background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--server-color) 22%, var(--surface)),
-        color-mix(in srgb, var(--server-color) 6%, var(--surface)) 55%,
-        var(--surface)
-    );
+    background: linear-gradient(90deg, color-mix(in srgb, var(--server-color) 22%, var(--surface)), color-mix(in srgb, var(--server-color) 6%, var(--surface)) 55%, var(--surface));
 }
 
 .tool--mcp .tool__head:hover {
@@ -1889,4 +1865,20 @@ button.chip {
     font-size: 10.5px;
     color: var(--thinking);
     opacity: 0.85;
+}
+
+/* Empty workspace */
+
+.drop-area {
+    max-width: 720px;
+    margin: 48px auto;
+}
+
+.formats {
+    margin-top: 24px;
+    font-size: 13px;
+}
+
+.panel__empty {
+    margin: 0;
 }

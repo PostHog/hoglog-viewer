@@ -27,9 +27,11 @@ export interface TimelineDockProps {
     collapsed: boolean
     onToggleCollapsed: () => void
     onHide: () => void
+    /** No log is open yet. */
+    empty?: boolean
 }
 
-export function TimelineDock({ turns, servers, subagents, isDimmed, selectedId, currentTime, onSelect, collapsed, onToggleCollapsed, onHide }: TimelineDockProps) {
+export function TimelineDock({ turns, servers, subagents, isDimmed, selectedId, currentTime, onSelect, collapsed, onToggleCollapsed, onHide, empty }: TimelineDockProps) {
     const model = useMemo(() => buildTimeline(turns, servers, subagents), [turns, servers, subagents])
     const scroller = useRef<HTMLDivElement>(null)
     const [pxPerSecond, setPxPerSecond] = useState<number>()
@@ -202,7 +204,7 @@ export function TimelineDock({ turns, servers, subagents, isDimmed, selectedId, 
                         </div>
                     </div>
                 ) : (
-                    <p className="muted small dock__empty">This log has no timestamps, so there is no timeline to draw.</p>
+                    <p className="muted small dock__empty">{empty ? 'Open a log to see its timeline.' : 'This log has no timestamps, so there is no timeline to draw.'}</p>
                 ))}
         </div>
     )

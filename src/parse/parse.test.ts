@@ -23,7 +23,13 @@ describe('Claude Code', () => {
             type: 'assistant',
             uuid: 'a2',
             timestamp: '2026-01-01T10:00:02Z',
-            message: { id: 'm1', model: 'claude-test', role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }], usage: { input_tokens: 5, output_tokens: 7 } },
+            message: {
+                id: 'm1',
+                model: 'claude-test',
+                role: 'assistant',
+                content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'ls' } }],
+                usage: { input_tokens: 5, output_tokens: 7 },
+            },
         },
         {
             ...base,
@@ -35,7 +41,13 @@ describe('Claude Code', () => {
         { ...base, type: 'user', uuid: 'u2', timestamp: '2026-01-01T10:00:04Z', message: { role: 'user', content: 'duplicate uuid, dropped' } },
         { ...base, type: 'user', uuid: 'u3', isMeta: true, timestamp: '2026-01-01T10:00:05Z', message: { role: 'user', content: '<system-reminder>be brief</system-reminder>' } },
         { ...base, type: 'user', uuid: 'u4', timestamp: '2026-01-01T10:00:06Z', message: { role: 'user', content: '<command-name>/compact</command-name><command-args></command-args>' } },
-        { ...base, type: 'assistant', uuid: 'a3', timestamp: '2026-01-01T10:00:07Z', message: { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'Done.' }], usage: { input_tokens: 1, output_tokens: 3 } } },
+        {
+            ...base,
+            type: 'assistant',
+            uuid: 'a3',
+            timestamp: '2026-01-01T10:00:07Z',
+            message: { id: 'm2', role: 'assistant', content: [{ type: 'text', text: 'Done.' }], usage: { input_tokens: 1, output_tokens: 3 } },
+        },
         { type: 'ai-title', aiTitle: 'Listing files', sessionId: 's1' },
         { type: 'cost-state', sessionId: 's1', totalCostUSD: 0.42, totalLinesAdded: 3, totalLinesRemoved: 1 }
     )
@@ -63,7 +75,11 @@ describe('Codex CLI', () => {
         const log = jsonl(
             { timestamp: '2026-01-01T10:00:00Z', type: 'session_meta', payload: { cwd: '/work/demo', cli_version: '1.0.0', git: { branch: 'main' } } },
             { timestamp: '2026-01-01T10:00:00Z', type: 'turn_context', payload: { model: 'gpt-test' } },
-            { timestamp: '2026-01-01T10:00:00Z', type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<environment_context>cwd</environment_context>' }] } },
+            {
+                timestamp: '2026-01-01T10:00:00Z',
+                type: 'response_item',
+                payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<environment_context>cwd</environment_context>' }] },
+            },
             { timestamp: '2026-01-01T10:00:01Z', type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Run the tests' }] } },
             { timestamp: '2026-01-01T10:00:02Z', type: 'response_item', payload: { type: 'reasoning', summary: [{ type: 'summary_text', text: 'Need to run pytest' }] } },
             {
@@ -138,7 +154,15 @@ describe('message lists', () => {
     })
 
     it('reads Claude.ai conversation exports', () => {
-        const data = [{ name: 'Trip ideas', chat_messages: [{ sender: 'human', text: 'Ideas for Porto?' }, { sender: 'assistant', text: 'Walk the Ribeira.' }] }]
+        const data = [
+            {
+                name: 'Trip ideas',
+                chat_messages: [
+                    { sender: 'human', text: 'Ideas for Porto?' },
+                    { sender: 'assistant', text: 'Walk the Ribeira.' },
+                ],
+            },
+        ]
 
         const session = parseLog(JSON.stringify(data))
 
@@ -188,7 +212,14 @@ describe('robustness', () => {
 
 describe('groupTurns', () => {
     it('opens a turn per top-level prompt and numbers prompts from 1', () => {
-        const session = parseLog(JSON.stringify([{ role: 'system', content: 'rules' }, { role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }, { role: 'user', content: 'c' }]))
+        const session = parseLog(
+            JSON.stringify([
+                { role: 'system', content: 'rules' },
+                { role: 'user', content: 'a' },
+                { role: 'assistant', content: 'b' },
+                { role: 'user', content: 'c' },
+            ])
+        )
 
         const turns = groupTurns(session.items)
 

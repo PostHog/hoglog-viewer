@@ -81,7 +81,10 @@ function parseSpeakerSections(text: string): Item[] | undefined {
     let preamble: string[] = []
 
     const flush = (): void => {
-        const body = lines.join('\n').replace(/\n-{3,}\s*$/, '').trim()
+        const body = lines
+            .join('\n')
+            .replace(/\n-{3,}\s*$/, '')
+            .trim()
         lines = []
         if (!speaker || !body) {
             return

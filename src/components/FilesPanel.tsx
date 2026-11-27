@@ -10,7 +10,7 @@ const KIND_LABELS: Record<TouchKind, string> = {
     delete: 'Deleted',
 }
 
-export function FilesPanel({ files }: { files: TouchedFile[] }) {
+export function FilesPanel({ files, empty }: { files: TouchedFile[]; empty?: boolean }) {
     const { jumpTo } = useSession()
     const [query, setQuery] = useState('')
     const [openPath, setOpenPath] = useState<string>()
@@ -36,7 +36,13 @@ export function FilesPanel({ files }: { files: TouchedFile[] }) {
                 <input type="checkbox" checked={changedOnly} onChange={() => setChangedOnly(!changedOnly)} />
                 Only changed files
             </label>
-            {files.length === 0 && <p className="muted small">No file reads or edits in this log. Shell commands are not counted, since which files they touch cannot be read reliably.</p>}
+            {files.length === 0 && (
+                <p className="muted small">
+                    {empty
+                        ? 'Open a log to see the files it read and changed.'
+                        : 'No file reads or edits in this log. Shell commands are not counted, since which files they touch cannot be read reliably.'}
+                </p>
+            )}
             <ul className="files__list">
                 {shown.map((file) => {
                     const open = openPath === file.path

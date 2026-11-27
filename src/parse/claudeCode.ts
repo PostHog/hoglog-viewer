@@ -26,13 +26,7 @@ const BASH_INPUT = /<bash-input>([\s\S]*?)<\/bash-input>/
 const BASH_OUTPUT = /<bash-(?:stdout|stderr)>([\s\S]*?)<\/bash-(?:stdout|stderr)>/g
 
 export function looksLikeClaudeCode(records: unknown[]): boolean {
-    return records.some(
-        (record) =>
-            isObject(record) &&
-            (record.type === 'user' || record.type === 'assistant') &&
-            isObject(record.message) &&
-            'sessionId' in record
-    )
+    return records.some((record) => isObject(record) && (record.type === 'user' || record.type === 'assistant') && isObject(record.message) && 'sessionId' in record)
 }
 
 export function parseClaudeCode(records: unknown[], skipped: number): Session {
@@ -151,14 +145,7 @@ export function parseClaudeCode(records: unknown[], skipped: number): Session {
 
 type Base = { timestamp?: string; sidechain?: true }
 
-function readAssistant(
-    record: Json,
-    base: Base,
-    items: Item[],
-    toolsById: Map<string, ToolItem>,
-    usageByMessage: Map<string, TokenUsage>,
-    models: Set<string>
-): void {
+function readAssistant(record: Json, base: Base, items: Item[], toolsById: Map<string, ToolItem>, usageByMessage: Map<string, TokenUsage>, models: Set<string>): void {
     const message = record.message
     if (!isObject(message)) {
         return
@@ -280,7 +267,10 @@ function readUserText(text: string, images: ImageRef[], isMeta: boolean, base: B
         return
     }
     if (text.includes('<bash-stdout>') || text.includes('<bash-stderr>')) {
-        const output = [...text.matchAll(BASH_OUTPUT)].map((match) => match[1].trim()).filter(Boolean).join('\n')
+        const output = [...text.matchAll(BASH_OUTPUT)]
+            .map((match) => match[1].trim())
+            .filter(Boolean)
+            .join('\n')
         items.push({ id: nextId('context'), kind: 'context', label: 'Shell command output', text: '```\n' + output + '\n```', ...base })
         return
     }
@@ -336,9 +326,7 @@ function readAttachment(record: Json, base: Base, items: Item[]): void {
 
 function attachmentText(record: Json, attachment: Json): string {
     if (Array.isArray(record.rendered)) {
-        const rendered = record.rendered
-            .map((part) => (isObject(part) ? asString(part.content) : undefined))
-            .filter((part): part is string => Boolean(part))
+        const rendered = record.rendered.map((part) => (isObject(part) ? asString(part.content) : undefined)).filter((part): part is string => Boolean(part))
         if (rendered.length) {
             return rendered.join('\n\n')
         }

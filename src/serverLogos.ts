@@ -96,7 +96,10 @@ const LOGOS: Record<string, SimpleIcon> = {
  * and `acme-github` all match but `renderer` does not match Render.
  */
 export function serverLogo(server: string): SimpleIcon | undefined {
-    const words = server.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+    const words = server
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean)
     const pairs = words.slice(1).map((word, index) => words[index] + word)
     for (const candidate of [words.join(''), ...pairs, ...words]) {
         if (LOGOS[candidate]) {

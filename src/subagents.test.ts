@@ -13,7 +13,11 @@ const mainLog = jsonl(
         type: 'assistant',
         uuid: 'a1',
         timestamp: '2026-01-01T10:00:01Z',
-        message: { id: 'm1', role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_agent', name: 'Agent', input: { description: 'Edit README', subagent_type: 'general-purpose', prompt: 'Fix it' } }] },
+        message: {
+            id: 'm1',
+            role: 'assistant',
+            content: [{ type: 'tool_use', id: 'toolu_agent', name: 'Agent', input: { description: 'Edit README', subagent_type: 'general-purpose', prompt: 'Fix it' } }],
+        },
     },
     {
         ...base,

@@ -1,16 +1,7 @@
 import type { Item, MetaField, Session, TokenUsage, ToolItem } from './types'
 import { asNumber, asString, flattenContent, isObject, nextId, tryParseJson, type Json } from './util'
 
-const ITEM_TYPES = new Set([
-    'message',
-    'reasoning',
-    'function_call',
-    'function_call_output',
-    'custom_tool_call',
-    'custom_tool_call_output',
-    'local_shell_call',
-    'web_search_call',
-])
+const ITEM_TYPES = new Set(['message', 'reasoning', 'function_call', 'function_call_output', 'custom_tool_call', 'custom_tool_call_output', 'local_shell_call', 'web_search_call'])
 
 const ENVELOPE_TYPES = new Set(['session_meta', 'response_item', 'event_msg', 'turn_context', 'compacted'])
 
@@ -129,12 +120,7 @@ function readItem(payload: Json, type: string, timestamp: string | undefined, it
         case 'custom_tool_call':
         case 'local_shell_call':
         case 'web_search_call': {
-            const input =
-                type === 'function_call'
-                    ? tryParseJson(asString(payload.arguments) ?? '')
-                    : type === 'custom_tool_call'
-                      ? payload.input
-                      : payload.action
+            const input = type === 'function_call' ? tryParseJson(asString(payload.arguments) ?? '') : type === 'custom_tool_call' ? payload.input : payload.action
             const name = asString(payload.name) ?? (type === 'local_shell_call' ? 'shell' : type === 'web_search_call' ? 'web_search' : 'tool')
             const tool: ToolItem = { id: nextId('tool'), kind: 'tool', toolUseId: asString(payload.call_id), name, input: normalizeShellInput(input), timestamp }
             if (tool.toolUseId) {

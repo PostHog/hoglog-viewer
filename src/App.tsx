@@ -112,48 +112,16 @@ export function App() {
                     <span className="privacy-note" title="The file is read with the browser's File API and never sent over the network">
                         Files stay in your browser
                     </span>
-                    {loaded && (
-                        <button type="button" className="button" onClick={() => fileInput.current?.click()}>
-                            Open another log
-                        </button>
-                    )}
+                    <button type="button" className="button" onClick={() => fileInput.current?.click()}>
+                        {loaded ? 'Open another log' : 'Open a log'}
+                    </button>
                 </div>
                 {picker}
             </header>
 
             {error && <p className="banner banner--error">{error}</p>}
 
-            {loaded ? (
-                <Viewer key={loaded.name + loaded.session.items.length} session={loaded.session} />
-            ) : (
-                <div className="landing">
-                    <button type="button" className={`dropzone${dragging ? ' is-dragging' : ''}`} onClick={() => fileInput.current?.click()}>
-                        <span className="dropzone__title">Drop an agent log here</span>
-                        <span className="muted">or click to choose files, or paste a log's contents</span>
-                    </button>
-                    <div className="formats">
-                        <h2>Supported formats</h2>
-                        <ul>
-                            <li>
-                                <strong>Claude Code</strong> session files (<code>~/.claude/projects/…/&lt;session&gt;.jsonl</code>) and <code>/export</code> text
-                            </li>
-                            <li>
-                                <strong>Codex CLI</strong> rollouts (<code>~/.codex/sessions/…/rollout-*.jsonl</code>)
-                            </li>
-                            <li>
-                                <strong>Message lists</strong> in JSON: OpenAI chat, Anthropic Messages, Vercel AI SDK, Gemini, and Claude.ai exports
-                            </li>
-                            <li>
-                                <strong>Markdown chat exports</strong> with speaker headings, such as Cursor's <em>Export chat</em>
-                            </li>
-                        </ul>
-                        <p className="muted">Anything else opens as raw records, so nothing is lost.</p>
-                        <p className="muted">
-                            Claude Code saves each subagent in its own file, under <code>&lt;session&gt;/subagents/</code>. Select the main log and those files together to see subagents nested under the call that started them.
-                        </p>
-                    </div>
-                </div>
-            )}
+            <Viewer key={loaded ? loaded.name + loaded.session.items.length : 'empty'} session={loaded?.session} dragging={dragging} onOpenFiles={() => fileInput.current?.click()} />
             {dragging && loaded && <div className="drop-overlay">Drop to open this log</div>}
         </div>
     )

@@ -9,12 +9,7 @@ const components: Components = {
         </a>
     ),
     // Logs come from customers. Loading a remote image would tell its host who opened the log.
-    img: ({ src, alt }) =>
-        typeof src === 'string' && src.startsWith('data:') ? (
-            <img src={src} alt={alt ?? ''} />
-        ) : (
-            <span className="blocked-image">[image: {alt || src}]</span>
-        ),
+    img: ({ src, alt }) => (typeof src === 'string' && src.startsWith('data:') ? <img src={src} alt={alt ?? ''} /> : <span className="blocked-image">[image: {alt || src}]</span>),
 }
 
 /** Renders untrusted markdown. Raw HTML stays escaped because no rehype-raw plugin is loaded. */
