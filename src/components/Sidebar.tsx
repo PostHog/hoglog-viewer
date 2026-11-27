@@ -47,6 +47,9 @@ export function Sidebar({ session, turns, activeTurn, onJump, server, onServerCh
                     <Stat label="Failed calls" value={String(failed)} tone={failed ? 'error' : undefined} />
                     {session.usage && <Stat label="Output tokens" value={formatNumber(session.usage.output)} />}
                     {session.usage && <Stat label="Cache reads" value={formatNumber(session.usage.cacheRead)} />}
+                    {session.subagents && session.subagents.length > 0 && (
+                        <Stat label="Subagents" value={`${session.subagents.length} · ${session.subagents.reduce((sum, run) => sum + run.session.items.filter((item) => item.kind === 'tool').length, 0)} calls`} />
+                    )}
                     {session.costUsd !== undefined && <Stat label="Cost" value={formatCost(session.costUsd)} />}
                 </dl>
             </section>

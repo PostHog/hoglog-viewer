@@ -44,6 +44,8 @@ export interface ToolItem extends ItemBase {
     name: string
     input: unknown
     result?: ToolResult
+    /** Set on a call that started a subagent; matches `SubagentRun.agentId`. */
+    subagentId?: string
 }
 
 /** Text injected by the harness: reminders, hook output, skill bodies, instructions. */
@@ -87,9 +89,21 @@ export interface MetaField {
     href?: string
 }
 
+export interface SubagentRun {
+    agentId: string
+    description?: string
+    agentType?: string
+    /** The tool call in the parent session that started this run. */
+    toolUseId?: string
+    session: Session
+}
+
 export interface Session {
     /** Human name of the detected format, e.g. "Claude Code". */
     format: string
+    /** Set when this log is a subagent's own transcript. */
+    agentId?: string
+    subagents?: SubagentRun[]
     title?: string
     meta: MetaField[]
     items: Item[]

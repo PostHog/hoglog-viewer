@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Viewer } from './components/Viewer'
-import { parseLog } from './parse'
+import { parseLogFiles, type LogFile } from './parse'
 import type { Session } from './parse/types'
 
 interface Loaded {
@@ -14,9 +14,11 @@ export function App() {
     const [dragging, setDragging] = useState(false)
     const fileInput = useRef<HTMLInputElement>(null)
 
-    const load = useCallback((name: string, text: string) => {
+    const load = useCallback((files: LogFile[]) => {
+        const logs = files.filter((file) => !file.name.endsWith('.meta.json'))
+        const name = logs.length > 1 ? `${logs[0].name} + ${logs.length - 1} more` : (logs[0]?.name ?? 'log')
         try {
-            const session = parseLog(text)
+            const session = parseLogFiles(files)
             setLoaded({ name, session })
             setError(undefined)
             document.title = `${session.title ?? name} · Agent log viewer`
@@ -26,10 +28,13 @@ export function App() {
         }
     }, [])
 
-    const loadFile = useCallback(
-        async (file: File | undefined) => {
-            if (file) {
-                load(file.name, await file.text())
+    const loadFiles = useCallback(
+        async (list: FileList | File[] | undefined | null) => {
+            const files = [...(list ?? [])]
+            if (files.length) {
+                // The main log first, so a lone subagent file is never mistaken for it.
+                files.sort((a, b) => Number(a.name.startsWith('agent-')) - Number(b.name.startsWith('agent-')))
+                load(await Promise.all(files.map(async (file) => ({ name: file.name, text: await file.text() }))))
             }
         },
         [load]
@@ -48,21 +53,20 @@ export function App() {
         const onDrop = (event: DragEvent): void => {
             event.preventDefault()
             setDragging(false)
-            void loadFile(event.dataTransfer?.files[0])
+            void loadFiles(event.dataTransfer?.files)
         }
         const onPaste = (event: ClipboardEvent): void => {
             const target = event.target as HTMLElement | null
             if (target?.closest('input, textarea')) {
                 return
             }
-            const file = event.clipboardData?.files[0]
-            if (file) {
-                void loadFile(file)
+            if (event.clipboardData?.files.length) {
+                void loadFiles(event.clipboardData.files)
                 return
             }
             const text = event.clipboardData?.getData('text/plain')
             if (text?.trim()) {
-                load('Pasted text', text)
+                load([{ name: 'Pasted text', text }])
             }
         }
         window.addEventListener('dragover', onDragOver)
@@ -75,16 +79,17 @@ export function App() {
             window.removeEventListener('drop', onDrop)
             window.removeEventListener('paste', onPaste)
         }
-    }, [load, loadFile])
+    }, [load, loadFiles])
 
     const picker = (
         <input
             ref={fileInput}
             type="file"
             hidden
+            multiple
             accept=".jsonl,.json,.md,.txt,.log,application/json,text/plain,text/markdown"
             onChange={(event) => {
-                void loadFile(event.target.files?.[0])
+                void loadFiles(event.target.files)
                 event.target.value = ''
             }}
         />
@@ -124,7 +129,7 @@ export function App() {
                 <div className="landing">
                     <button type="button" className={`dropzone${dragging ? ' is-dragging' : ''}`} onClick={() => fileInput.current?.click()}>
                         <span className="dropzone__title">Drop an agent log here</span>
-                        <span className="muted">or click to choose a file, or paste its contents</span>
+                        <span className="muted">or click to choose files, or paste a log's contents</span>
                     </button>
                     <div className="formats">
                         <h2>Supported formats</h2>
@@ -143,6 +148,9 @@ export function App() {
                             </li>
                         </ul>
                         <p className="muted">Anything else opens as raw records, so nothing is lost.</p>
+                        <p className="muted">
+                            Claude Code saves each subagent in its own file, under <code>&lt;session&gt;/subagents/</code>. Select the main log and those files together to see subagents nested under the call that started them.
+                        </p>
                     </div>
                 </div>
             )}

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { formatDuration, formatTime } from '../format'
 import type { ContextItem, EventItem, Item, ThinkingItem, UserItem } from '../parse/types'
+import { isAgentTool } from '../parse'
 import { Markdown } from './Markdown'
+import { SubagentCall } from './SubagentCall'
 import { ToolCall } from './ToolCall'
 
 export interface ItemViewProps {
@@ -23,7 +25,7 @@ export function ItemView({ item, expandTools }: ItemViewProps) {
         case 'thinking':
             return <Thinking item={item} />
         case 'tool':
-            return <ToolToggle item={item} expandTools={expandTools} />
+            return isAgentTool(item) ? <SubagentCall tool={item} expandTools={expandTools} /> : <ToolToggle item={item} expandTools={expandTools} />
         case 'context':
             return <Context item={item} />
         case 'event':

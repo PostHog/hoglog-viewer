@@ -49,6 +49,7 @@ export function parseClaudeCode(records: unknown[], skipped: number): Session {
     let firstTimestamp: string | undefined
     let lastTimestamp: string | undefined
     let environment: Json | undefined
+    const agentId = records.map((record) => (isObject(record) ? asString(record.agentId) : undefined)).find(Boolean)
 
     for (const record of records) {
         if (!isObject(record)) {
@@ -69,7 +70,8 @@ export function parseClaudeCode(records: unknown[], skipped: number): Session {
         if (!environment && typeof record.cwd === 'string') {
             environment = record
         }
-        const sidechain = record.isSidechain === true || undefined
+        // A subagent's own transcript marks every record as a sidechain; inside it, nothing is nested.
+        const sidechain = (!agentId && record.isSidechain === true) || undefined
         const base = { timestamp, sidechain }
 
         switch (record.type) {
@@ -97,6 +99,7 @@ export function parseClaudeCode(records: unknown[], skipped: number): Session {
                 break
             case 'user':
                 readUser(record, base, items, toolsById)
+                linkSubagent(record, toolsById)
                 break
             case 'attachment':
                 readAttachment(record, base, items)
@@ -136,6 +139,7 @@ export function parseClaudeCode(records: unknown[], skipped: number): Session {
 
     return {
         format: 'Claude Code',
+        agentId,
         title: title ?? summaryTitle,
         meta,
         items,
@@ -373,6 +377,23 @@ function readSystem(record: Json, base: Base, items: Item[]): void {
             if (content) {
                 items.push({ id: nextId('context'), kind: 'context', label: humanize(subtype ?? 'system'), text: content, ...base })
             }
+    }
+}
+
+/** The Agent tool's result names the run it started; the run's transcript lives in its own file. */
+function linkSubagent(record: Json, toolsById: Map<string, ToolItem>): void {
+    const result = record.toolUseResult
+    const message = record.message
+    if (!isObject(result) || typeof result.agentId !== 'string' || !isObject(message) || !Array.isArray(message.content)) {
+        return
+    }
+    for (const block of message.content) {
+        if (isObject(block) && block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
+            const tool = toolsById.get(block.tool_use_id)
+            if (tool) {
+                tool.subagentId = result.agentId
+            }
+        }
     }
 }
 

@@ -1,13 +1,14 @@
 import { parseToolName } from './format'
-import type { Item, Turn } from './parse/types'
+import type { Item, SubagentRun, Turn } from './parse/types'
 
-export type LaneKind = 'prompts' | 'agent' | 'builtin' | 'server'
+export type LaneKind = 'prompts' | 'agent' | 'builtin' | 'server' | 'subagent'
 
 export interface Lane {
     key: string
     kind: LaneKind
     label: string
     server?: string
+    agentId?: string
 }
 
 export interface TimelineEvent {
@@ -43,7 +44,7 @@ function time(timestamp?: string): number | undefined {
 }
 
 /** Places every timestamped item on a lane. Returns undefined when the log has no usable timestamps. */
-export function buildTimeline(turns: Turn[], servers: string[]): TimelineModel | undefined {
+export function buildTimeline(turns: Turn[], servers: string[], subagents: SubagentRun[] = []): TimelineModel | undefined {
     const events: TimelineEvent[] = []
     const spans: TurnSpan[] = []
     const usedServers = new Set<string>()
@@ -90,6 +91,29 @@ export function buildTimeline(turns: Turn[], servers: string[]): TimelineModel |
         }
     }
 
+    const subagentLanes: Lane[] = []
+    for (const run of subagents) {
+        const parentTurn = turns.find((turn) => turn.items.some((item) => item.kind === 'tool' && item.subagentId === run.agentId)) ?? turns.at(-1)
+        if (!parentTurn) {
+            continue
+        }
+        const lane = `subagent:${run.agentId}`
+        let placed = false
+        for (const item of run.session.items) {
+            const at = time(item.timestamp)
+            if (at === undefined || item.kind === 'context' || item.kind === 'user') {
+                continue
+            }
+            const end = item.kind === 'tool' ? Math.max(at, time(item.result?.timestamp) ?? at) : at
+            const start = item.kind === 'thinking' ? at - (item.durationMs ?? 0) : at
+            events.push({ item, lane, turn: parentTurn, start, end })
+            placed = true
+        }
+        if (placed) {
+            subagentLanes.push({ key: lane, kind: 'subagent', label: run.description ?? 'Subagent', agentId: run.agentId })
+        }
+    }
+
     if (!events.length) {
         return undefined
     }
@@ -105,6 +129,7 @@ export function buildTimeline(turns: Turn[], servers: string[]): TimelineModel |
     for (const server of servers.filter((name) => usedServers.has(name))) {
         lanes.push({ key: `server:${server}`, kind: 'server', label: server, server })
     }
+    lanes.push(...subagentLanes)
 
     return {
         lanes,
@@ -200,12 +225,18 @@ const MIN_TICK_SPACING_PX = 90
 function buildTicks(blocks: { start: number; end: number }[], x: (t: number) => number, pxPerSecond: number): { x: number; t: number }[] {
     const step = TICK_STEPS_MS.find((candidate) => (candidate / 1000) * pxPerSecond >= MIN_TICK_SPACING_PX) ?? TICK_STEPS_MS.at(-1)!
     const ticks: { x: number; t: number }[] = []
+    const push = (t: number): void => {
+        const tickX = x(t)
+        const previous = ticks.at(-1)
+        // Labels are about 60px wide; a block's first tick can land right after the previous block's last one.
+        if (!previous || tickX - previous.x >= MIN_TICK_SPACING_PX * 0.8) {
+            ticks.push({ x: tickX, t })
+        }
+    }
     for (const block of blocks) {
-        ticks.push({ x: x(block.start), t: block.start })
+        push(block.start)
         for (let t = Math.ceil(block.start / step) * step; t <= block.end; t += step) {
-            if (t - block.start > step / 2) {
-                ticks.push({ x: x(t), t })
-            }
+            push(t)
         }
     }
     return ticks

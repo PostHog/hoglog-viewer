@@ -1,12 +1,15 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { touchedFiles } from '../files'
 import { between, parseToolName } from '../format'
-import { groupTurns } from '../parse'
+import { groupTurns, isAgentTool } from '../parse'
+import type { Item, Session, ToolItem } from '../parse/types'
 import { mcpServers } from '../servers'
-import type { Item, Session } from '../parse/types'
+import { FilesPanel } from './FilesPanel'
 import { ServerBadge } from './ServerBadge'
 import { ServerColorsProvider } from './ServerColors'
+import { SessionContext, type Focus, type SessionContextValue } from './SessionContext'
 import { Sidebar } from './Sidebar'
-import { TimelineView } from './TimelineView'
+import { TimelineDock } from './TimelineDock'
 import { TurnView } from './TurnView'
 
 interface Filters {
@@ -23,35 +26,52 @@ const FILTER_LABELS: Record<keyof Filters, string> = {
     subagents: 'Subagents',
 }
 
+const DOCK_DEFAULT_PX = 210
+const DOCK_MIN_PX = 110
+const DOCK_COLLAPSED_PX = 34
+const FLASH_MS = 1600
+const FIND_ATTEMPTS = 20
+
 export function Viewer({ session }: { session: Session }) {
     const turns = useMemo(() => groupTurns(session.items), [session])
+    const subagentRuns = useMemo(() => session.subagents ?? [], [session])
+    const allItems = useMemo(() => [...session.items, ...subagentRuns.flatMap((run) => run.session.items)], [session, subagentRuns])
+    const servers = useMemo(() => mcpServers(allItems.filter((item): item is ToolItem => item.kind === 'tool')).map((entry) => entry.server), [allItems])
+    const files = useMemo(() => touchedFiles(session), [session])
+
     const [filters, setFilters] = useState<Filters>({ tools: true, thinking: true, context: false, subagents: true })
     const [query, setQuery] = useState('')
     const deferredQuery = useDeferredValue(query.trim().toLowerCase())
     const [expandTools, setExpandTools] = useState(false)
     const [activeTurn, setActiveTurn] = useState<number>()
     const [server, setServer] = useState<string>()
-    const [mode, setMode] = useState<'conversation' | 'timeline'>('conversation')
-    const [pendingScroll, setPendingScroll] = useState<Item>()
-    const servers = useMemo(() => mcpServers(session.items.filter((item) => item.kind === 'tool')).map((entry) => entry.server), [session])
+    const [focus, setFocus] = useState<Focus>()
+    const [currentTime, setCurrentTime] = useState<number>()
+    const [filesOpen, setFilesOpen] = useState(false)
+    const [dockCollapsed, setDockCollapsed] = useState(false)
+    const [dockHidden, setDockHidden] = useState(false)
+    const [dockHeight, setDockHeight] = useState(DOCK_DEFAULT_PX)
+    const thread = useRef<HTMLElement>(null)
 
     const haystacks = useMemo(() => {
         const map = new Map<string, string>()
-        for (const item of session.items) {
+        for (const item of allItems) {
             map.set(item.id, searchText(item).toLowerCase())
         }
         return map
-    }, [session])
+    }, [allItems])
+
+    const isSubagentItem = useCallback((item: Item) => item.sidechain === true || (item.kind === 'tool' && isAgentTool(item)), [])
 
     const visibleTurns = useMemo(() => {
         const keep = (item: Item): boolean => {
             if (server && !(item.kind === 'tool' && parseToolName(item.name).server === server)) {
                 return false
             }
-            if (item.sidechain && !filters.subagents) {
+            if (!filters.subagents && isSubagentItem(item)) {
                 return false
             }
-            if ((item.kind === 'tool' && !filters.tools) || (item.kind === 'thinking' && !filters.thinking) || (item.kind === 'context' && !filters.context)) {
+            if ((item.kind === 'tool' && !filters.tools && !isAgentTool(item)) || (item.kind === 'thinking' && !filters.thinking) || (item.kind === 'context' && !filters.context)) {
                 return false
             }
             return !deferredQuery || (haystacks.get(item.id)?.includes(deferredQuery) ?? false)
@@ -63,7 +83,7 @@ export function Viewer({ session }: { session: Session }) {
                 return { turn, items, visible: items.length > 0 || (Boolean(turn.prompt) && promptMatches) }
             })
             .filter((entry) => entry.visible)
-    }, [turns, filters, deferredQuery, haystacks, server])
+    }, [turns, filters, deferredQuery, haystacks, server, isSubagentItem])
 
     const isDimmed = useCallback(
         (item: Item): boolean => {
@@ -75,99 +95,206 @@ export function Viewer({ session }: { session: Session }) {
         [server, deferredQuery, haystacks]
     )
 
-    const showInConversation = useCallback((item: Item) => {
-        setMode('conversation')
-        setPendingScroll(item)
-    }, [])
-
-    useEffect(() => {
-        if (mode !== 'conversation' || !pendingScroll) {
-            return
-        }
-        const target = document.getElementById(`item-${pendingScroll.id}`)
-        if (target) {
-            target.scrollIntoView({ block: 'center' })
-            target.classList.add('is-flashing')
-            window.setTimeout(() => target.classList.remove('is-flashing'), 1600)
-        }
-        setPendingScroll(undefined)
-    }, [mode, pendingScroll])
-
     const matchCount = deferredQuery || server ? visibleTurns.reduce((sum, entry) => sum + entry.items.length, 0) : 0
 
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-                if (visible[0]) {
-                    setActiveTurn(Number((visible[0].target as HTMLElement).dataset.turn))
-                }
-            },
-            { rootMargin: '-80px 0px -60% 0px' }
-        )
-        document.querySelectorAll('[data-turn]').forEach((element) => observer.observe(element))
-        return () => observer.disconnect()
-    }, [visibleTurns, mode])
+    const sessionContext = useMemo<SessionContextValue>(() => {
+        const subagents = new Map(subagentRuns.map((run) => [run.agentId, run]))
+        const subagentItemIds = new Map(subagentRuns.map((run) => [run.agentId, new Set(run.session.items.map((item) => item.id))]))
+        return {
+            subagents,
+            subagentItemIds,
+            focus,
+            jumpTo: (itemId) => setFocus((current) => ({ itemId, seq: (current?.seq ?? 0) + 1 })),
+            showItem: (item) => !((item.kind === 'tool' && !filters.tools) || (item.kind === 'thinking' && !filters.thinking) || (item.kind === 'context' && !filters.context)),
+        }
+    }, [subagentRuns, focus, filters])
 
-    const jump = (index: number): void => {
-        document.getElementById(`turn-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Scroll the conversation to the focused item. A subagent's items only exist once its block
+    // opens, so keep looking for a few frames before falling back to the nearest visible anchor.
+    useEffect(() => {
+        if (!focus) {
+            return
+        }
+        let attempts = 0
+        let frame = 0
+        const find = (): void => {
+            const target = document.getElementById(`item-${focus.itemId}`) ?? (attempts >= FIND_ATTEMPTS ? fallbackAnchor(focus.itemId, turns, subagentRuns) : null)
+            if (target) {
+                target.scrollIntoView({ block: 'center' })
+                target.classList.add('is-flashing')
+                window.setTimeout(() => target.classList.remove('is-flashing'), FLASH_MS)
+                return
+            }
+            attempts++
+            if (attempts <= FIND_ATTEMPTS) {
+                frame = requestAnimationFrame(find)
+            }
+        }
+        find()
+        return () => cancelAnimationFrame(frame)
+    }, [focus, turns, subagentRuns])
+
+    // Track which item sits at the top of the conversation, for the timeline cursor and the outline.
+    useEffect(() => {
+        const element = thread.current
+        if (!element) {
+            return
+        }
+        let frame = 0
+        const update = (): void => {
+            frame = 0
+            const anchors = element.querySelectorAll<HTMLElement>('[data-time]')
+            const top = element.getBoundingClientRect().top + 120
+            let low = 0
+            let high = anchors.length - 1
+            let found: HTMLElement | undefined
+            while (low <= high) {
+                const middle = (low + high) >> 1
+                if (anchors[middle].getBoundingClientRect().bottom >= top) {
+                    found = anchors[middle]
+                    high = middle - 1
+                } else {
+                    low = middle + 1
+                }
+            }
+            if (found) {
+                setCurrentTime(Number(found.dataset.time))
+                const turn = found.closest<HTMLElement>('[data-turn]')
+                if (turn) {
+                    setActiveTurn(Number(turn.dataset.turn))
+                }
+            }
+        }
+        const onScroll = (): void => {
+            frame ||= requestAnimationFrame(update)
+        }
+        element.addEventListener('scroll', onScroll, { passive: true })
+        update()
+        return () => {
+            element.removeEventListener('scroll', onScroll)
+            cancelAnimationFrame(frame)
+        }
+    }, [visibleTurns])
+
+    const jumpToTurn = (index: number): void => {
+        document.getElementById(`turn-${index}`)?.scrollIntoView({ block: 'start' })
     }
+
+    const startResize = (event: ReactPointerEvent<HTMLDivElement>): void => {
+        event.preventDefault()
+        const startY = event.clientY
+        const startHeight = dockHeight
+        const onMove = (move: PointerEvent): void => {
+            setDockHeight(Math.min(window.innerHeight * 0.6, Math.max(DOCK_MIN_PX, startHeight - (move.clientY - startY))))
+        }
+        const onUp = (): void => {
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', onUp)
+        }
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', onUp)
+        setDockCollapsed(false)
+    }
+
+    const layoutStyle = { '--dock-h': `${dockCollapsed ? DOCK_COLLAPSED_PX : dockHeight}px` } as CSSProperties
 
     return (
         <ServerColorsProvider>
-        <div className="viewer">
-            <Sidebar session={session} turns={turns} activeTurn={activeTurn} onJump={jump} server={server} onServerChange={setServer} />
-            <main className="timeline">
-                <div className="toolbar">
-                    <div className="view-switch" role="tablist" aria-label="View">
-                        {(['conversation', 'timeline'] as const).map((value) => (
-                            <button key={value} type="button" role="tab" aria-selected={mode === value} className={`view-switch__tab${mode === value ? ' is-active' : ''}`} onClick={() => setMode(value)}>
-                                {value === 'conversation' ? 'Conversation' : 'Timeline'}
-                            </button>
-                        ))}
-                    </div>
-                    <input className="search" type="search" placeholder="Search prompts, replies, commands and output" value={query} onChange={(event) => setQuery(event.target.value)} />
-                    {mode === 'conversation' && (
-                    <div className="toggles">
-                        {(Object.keys(FILTER_LABELS) as (keyof Filters)[]).map((key) => (
-                            <label key={key} className="toggle">
-                                <input type="checkbox" checked={filters[key]} onChange={() => setFilters({ ...filters, [key]: !filters[key] })} />
-                                {FILTER_LABELS[key]}
-                            </label>
-                        ))}
-                        <button type="button" className="button button--small" onClick={() => setExpandTools(!expandTools)}>
-                            {expandTools ? 'Collapse tool calls' : 'Expand tool calls'}
-                        </button>
-                    </div>
-                    )}
-                    {server && (
-                        <div className="active-filter">
-                            Only calls to <ServerBadge server={server} />
-                            <button type="button" className="link-button" onClick={() => setServer(undefined)}>
-                                Show everything
-                            </button>
+            <SessionContext.Provider value={sessionContext}>
+                <div className={`workspace${filesOpen ? ' has-drawer' : ''}${dockHidden ? ' dock-hidden' : ''}`} style={layoutStyle}>
+                    <Sidebar session={session} turns={turns} activeTurn={activeTurn} onJump={jumpToTurn} server={server} onServerChange={setServer} />
+
+                    <main className="thread" ref={thread}>
+                        <div className="toolbar">
+                            <input className="search" type="search" placeholder="Search prompts, replies, commands and output" value={query} onChange={(event) => setQuery(event.target.value)} />
+                            <div className="toggles">
+                                {(Object.keys(FILTER_LABELS) as (keyof Filters)[]).map((key) =>
+                                    key === 'subagents' && !subagentRuns.length && !session.items.some(isSubagentItem) ? null : (
+                                        <label key={key} className="toggle">
+                                            <input type="checkbox" checked={filters[key]} onChange={() => setFilters({ ...filters, [key]: !filters[key] })} />
+                                            {FILTER_LABELS[key]}
+                                        </label>
+                                    )
+                                )}
+                                {server && (
+                                    <span className="active-filter">
+                                        Only <ServerBadge server={server} />
+                                        <button type="button" className="link-button" onClick={() => setServer(undefined)}>
+                                            Show everything
+                                        </button>
+                                    </span>
+                                )}
+                                {(deferredQuery || server) && (
+                                    <span className="muted small">
+                                        {matchCount} {matchCount === 1 ? 'item' : 'items'} in {visibleTurns.length} {visibleTurns.length === 1 ? 'turn' : 'turns'}
+                                    </span>
+                                )}
+                                <button type="button" className="button button--small toggles__end" onClick={() => setExpandTools(!expandTools)}>
+                                    {expandTools ? 'Collapse tool calls' : 'Expand tool calls'}
+                                </button>
+                            </div>
                         </div>
-                    )}
-                    {(deferredQuery || server) && (
-                        <p className="muted small">
-                            {matchCount} matching {matchCount === 1 ? 'item' : 'items'} in {visibleTurns.length} {visibleTurns.length === 1 ? 'turn' : 'turns'}
-                        </p>
-                    )}
-                </div>
-                {mode === 'timeline' ? (
-                    <TimelineView turns={turns} servers={servers} isDimmed={isDimmed} onShowInConversation={showInConversation} />
-                ) : (
-                    <>
                         {visibleTurns.length === 0 && <p className="empty">Nothing matches the current search and filters.</p>}
                         {visibleTurns.map(({ turn, items }) => (
-                            <TurnView key={turn.index} turn={turn} items={items} showPrompt expandTools={expandTools} userWaitMs={turns[turn.index - 1]?.prompt ? between(turns[turn.index - 1].endedAt, turn.prompt?.timestamp) : undefined} />
+                            <TurnView
+                                key={turn.index}
+                                turn={turn}
+                                items={items}
+                                showPrompt
+                                expandTools={expandTools}
+                                userWaitMs={turns[turn.index - 1]?.prompt ? between(turns[turn.index - 1].endedAt, turn.prompt?.timestamp) : undefined}
+                            />
                         ))}
-                    </>
-                )}
-            </main>
-        </div>
+                    </main>
+
+                    {filesOpen && (
+                        <aside className="drawer" aria-label="Files touched">
+                            <FilesPanel files={files} />
+                        </aside>
+                    )}
+
+                    <nav className="rail" aria-label="Panels">
+                        <button type="button" className={`rail__tab${filesOpen ? ' is-active' : ''}`} onClick={() => setFilesOpen(!filesOpen)} aria-pressed={filesOpen}>
+                            Files <span className="rail__count">{files.length}</span>
+                        </button>
+                        <button type="button" className={`rail__tab${dockHidden ? '' : ' is-active'}`} onClick={() => setDockHidden(!dockHidden)} aria-pressed={!dockHidden}>
+                            Timeline
+                        </button>
+                    </nav>
+
+                    <section className="dock-area" aria-label="Timeline">
+                        <div className="dock-area__handle" onPointerDown={startResize} role="separator" aria-orientation="horizontal" aria-label="Resize the timeline" />
+                        <TimelineDock
+                            turns={turns}
+                            servers={servers}
+                            subagents={subagentRuns}
+                            isDimmed={isDimmed}
+                            selectedId={focus?.itemId}
+                            currentTime={currentTime}
+                            onSelect={(item) => sessionContext.jumpTo(item.id)}
+                            collapsed={dockCollapsed}
+                            onToggleCollapsed={() => setDockCollapsed(!dockCollapsed)}
+                            onHide={() => setDockHidden(true)}
+                        />
+                    </section>
+                </div>
+            </SessionContext.Provider>
         </ServerColorsProvider>
     )
+}
+
+/** Where to scroll when an item is not on screen: its subagent's call, or its turn. */
+function fallbackAnchor(itemId: string, turns: ReturnType<typeof groupTurns>, runs: NonNullable<Session['subagents']>): HTMLElement | null {
+    const run = runs.find((candidate) => candidate.session.items.some((item) => item.id === itemId))
+    if (run) {
+        const parent = turns.flatMap((turn) => turn.items).find((item) => item.kind === 'tool' && item.subagentId === run.agentId)
+        const anchor = parent && document.getElementById(`item-${parent.id}`)
+        if (anchor) {
+            return anchor
+        }
+    }
+    const turn = turns.find((candidate) => candidate.prompt?.id === itemId || candidate.items.some((item) => item.id === itemId))
+    return turn ? document.getElementById(`turn-${turn.index}`) : null
 }
 
 function searchText(item: Item): string {
